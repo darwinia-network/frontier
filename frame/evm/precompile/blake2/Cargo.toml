@@ -9,9 +9,9 @@ repository = "https://github.com/paritytech/frontier/"
 description = "BLAKE2 precompiles for EVM pallet."
 
 [dependencies]
-sp-core = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate" }
-sp-io = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate" }
-fp-evm = { version = "3.0.0-dev", default-features = false, path = "../../../../primitives/evm" }
+sp-core = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.0", default-features = false }
+sp-io   = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.0", default-features = false }
+fp-evm  = { version = "3.0.0-dev", default-features = false, path = "../../../../primitives/evm" }
 
 [dev-dependencies]
 pallet-evm-test-vector-support = { version = "1.0.0-dev", path = "../../test-vector-support" }
