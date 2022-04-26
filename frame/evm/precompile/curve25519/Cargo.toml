@@ -1,24 +1,24 @@
 [package]
-name = "pallet-evm-precompile-curve25519"
-version = "1.0.0-dev"
-authors = ["Parity Technologies <admin@parity.io>", "Drew Stone <drew@webb.tools>"]
-edition = "2018"
-license = "Apache-2.0"
-homepage = "https://substrate.io"
-repository = "https://github.com/paritytech/frontier/"
+authors     = ["Parity Technologies <admin@parity.io>", "Drew Stone <drew@webb.tools>"]
 description = "Curve25519 elliptic curve precompiles for EVM pallet."
+edition     = "2018"
+homepage    = "https://substrate.io"
+license     = "Apache-2.0"
+name        = "pallet-evm-precompile-curve25519"
+repository  = "https://github.com/paritytech/frontier/"
+version     = "1.0.0-dev"
 
 [dependencies]
-sp-core = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-io = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-frame-support = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-fp-evm = { version = "3.0.0-dev", default-features = false, path = "../../../../primitives/evm" }
-codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
+codec         = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
+fp-evm        = { version = "3.0.0-dev", default-features = false, path = "../../../../primitives/evm" }
+frame-support = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-core       = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-io         = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
 
-[dependencies.curve25519-dalek]
-version = "4.0.0-dev"
-default-features = false
-features = ["u64_backend", "alloc"]
+	[dependencies.curve25519-dalek]
+	default-features = false
+	features         = ["u64_backend", "alloc"]
+	version          = "4.0.0-dev"
 
 [features]
 default = ["std"]

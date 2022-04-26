@@ -1,22 +1,22 @@
 [package]
-name = "fp-rpc"
-version = "3.0.0-dev"
-authors = ["Parity Technologies <admin@parity.io"]
-edition = "2018"
+authors     = ["Parity Technologies <admin@parity.io"]
 description = "Runtime primitives for Ethereum RPC (web3) compatibility layer for Substrate."
-license = "Apache-2.0"
+edition     = "2018"
+license     = "Apache-2.0"
+name        = "fp-rpc"
+version     = "3.0.0-dev"
 
 [dependencies]
-sp-core = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-api = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-fp-evm = { version = "3.0.0-dev", default-features = false, path = "../../primitives/evm" }
-ethereum = { version = "0.11.1", default-features = false, features = ["with-codec"] }
+codec          = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
+ethereum       = { version = "0.11.1", default-features = false, features = ["with-codec"] }
 ethereum-types = { version = "0.12", default-features = false }
-codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
-sp-runtime = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-std = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-io = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-scale-info = { version = "1.0.0", default-features = false, features = ["derive"] }
+fp-evm         = { version = "3.0.0-dev", default-features = false, path = "../../primitives/evm" }
+scale-info     = { version = "1.0.0", default-features = false, features = ["derive"] }
+sp-api         = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-core        = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-io          = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-runtime     = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-std         = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
 
 [features]
 default = ["std"]

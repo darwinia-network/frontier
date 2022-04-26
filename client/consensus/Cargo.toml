@@ -1,29 +1,29 @@
 [package]
-name = "fc-consensus"
-version = "2.0.0-dev"
-authors = ["Parity Technologies <admin@parity.io>"]
+authors     = ["Parity Technologies <admin@parity.io>"]
 description = "Frontier consensus for substrate"
-edition = "2018"
-license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
-repository = "https://github.com/paritytech/frontier/"
+edition     = "2018"
+license     = "GPL-3.0-or-later WITH Classpath-exception-2.0"
+name        = "fc-consensus"
+repository  = "https://github.com/paritytech/frontier/"
+version     = "2.0.0-dev"
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "2.0.0", features = ["derive"] }
-sp-core = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-blockchain = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-runtime = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-api = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sc-client-api = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-block-builder = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-inherents = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-fp-consensus = { version = "2.0.0-dev", path = "../../primitives/consensus" }
-fp-rpc = { version = "3.0.0-dev", path = "../../primitives/rpc" }
-fc-db = { version = "2.0.0-dev", path = "../db" }
-sp-consensus = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sc-consensus = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-log = "0.4.8"
-futures = { version = "0.3.17", features = ["compat"] }
-sp-timestamp = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-thiserror = "1.0"
-prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-async-trait = "0.1"
+async-trait         = "0.1"
+codec               = { package = "parity-scale-codec", version = "2.0.0", features = ["derive"] }
+fc-db               = { version = "2.0.0-dev", path = "../db" }
+fp-consensus        = { version = "2.0.0-dev", path = "../../primitives/consensus" }
+fp-rpc              = { version = "3.0.0-dev", path = "../../primitives/rpc" }
+futures             = { version = "0.3.17", features = ["compat"] }
+log                 = "0.4.8"
+prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sc-client-api       = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sc-consensus        = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-api              = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-block-builder    = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-blockchain       = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-consensus        = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-core             = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-inherents        = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-runtime          = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-timestamp        = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+thiserror           = "1.0"

@@ -1,27 +1,27 @@
 [package]
-name = "pallet-dynamic-fee"
-version = "4.0.0-dev"
-authors = ["Parity Technologies <admin@parity.io>"]
-edition = "2018"
+authors     = ["Parity Technologies <admin@parity.io>"]
 description = "Dynamic fee handling for EVM."
-license = "Apache-2.0"
+edition     = "2018"
+license     = "Apache-2.0"
+name        = "pallet-dynamic-fee"
+version     = "4.0.0-dev"
 
 [dependencies]
-pallet-evm = { path = "../evm", version = "6.0.0-dev", default-features = false }
-codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
-serde = { version = "1.0.101", optional = true }
-sp-std = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-core = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-runtime = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-inherents = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-frame-system = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-frame-support = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-async-trait = "0.1"
-scale-info = { version = "1.0.0", default-features = false, features = ["derive"] }
+async-trait   = "0.1"
+codec         = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
+frame-support = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+frame-system  = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+pallet-evm    = { path = "../evm", version = "6.0.0-dev", default-features = false }
+scale-info    = { version = "1.0.0", default-features = false, features = ["derive"] }
+serde         = { version = "1.0.101", optional = true }
+sp-core       = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-inherents  = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-runtime    = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-std        = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
 
 [dev-dependencies]
-pallet-timestamp = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
-sp-io = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.1" }
+pallet-timestamp = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
+sp-io            = { default-features = false, git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.2" }
 
 [features]
 default = ["std"]
