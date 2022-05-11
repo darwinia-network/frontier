@@ -1,23 +1,23 @@
 [package]
-name = "fp-evm"
-version = "3.0.0-dev"
-license = "Apache-2.0"
-authors = ["Parity Technologies <admin@parity.io>"]
-edition = "2018"
-homepage = "https://substrate.io"
-repository = "https://github.com/paritytech/frontier/"
-description = "Primitive EVM abstractions for Substrate."
+authors       = ["Parity Technologies <admin@parity.io>"]
+description   = "Primitive EVM abstractions for Substrate."
 documentation = "https://docs.rs/sp-evm"
+edition       = "2018"
+homepage      = "https://substrate.io"
+license       = "Apache-2.0"
+name          = "fp-evm"
+repository    = "https://github.com/paritytech/frontier/"
+version       = "3.0.0-dev"
 
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
+	[package.metadata.docs.rs]
+	targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-sp-core = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate", default-features = false }
-sp-std = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate", default-features = false }
-serde = { version = "1.0.101", optional = true, features = ["derive"] }
-codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
-evm = { version = "0.33.1", default-features = false, features = ["with-codec"] }
+codec   = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
+evm     = { version = "0.33.1", default-features = false, features = ["with-codec"] }
+serde   = { version = "1.0.101", optional = true, features = ["derive"] }
+sp-core = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.3", default-features = false }
+sp-std  = { git = "https://github.com/darwinia-network/substrate", branch = "darwinia-v0.12.3", default-features = false }
 
 [features]
 default = ["std"]
