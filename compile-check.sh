@@ -11,12 +11,13 @@ crates=(
    pallet-evm
    pallet-evm-precompile-simple
    fc-db
-   fc-rpc
-   fc-rpc-core
+#    fc-rpc
+#    fc-rpc-core
    pallet-base-fee
    pallet-evm-precompile-modexp
    pallet-evm-precompile-sha3fips
    pallet-evm-precompile-simple
+   pallet-evm-precompile-blake2
    fc-mapping-sync
 )
 
