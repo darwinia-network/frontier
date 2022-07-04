@@ -752,7 +752,7 @@ impl<T: Config> Pallet<T> {
 					let access_list: Vec<(H160, Vec<H256>)> = t
 						.access_list
 						.iter()
-						.map(|item| (item.address, item.storage_keys.clone()))
+						.map(|item| (item.address, item.slots.clone()))
 						.collect();
 					(
 						t.input.clone(),
@@ -769,7 +769,7 @@ impl<T: Config> Pallet<T> {
 					let access_list: Vec<(H160, Vec<H256>)> = t
 						.access_list
 						.iter()
-						.map(|item| (item.address, item.storage_keys.clone()))
+						.map(|item| (item.address, item.slots.clone()))
 						.collect();
 					(
 						t.input.clone(),
