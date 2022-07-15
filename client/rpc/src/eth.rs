@@ -2616,7 +2616,7 @@ where
 			ethereum_schema_mapping,
 		)
 		.map_err(|err| {
-			log::warn!("Error schema cache insert for genesis: {:?}", err);
+			log::warn!("Error schema cache insert: {:?}", err);
 		});
 
 		Self {
