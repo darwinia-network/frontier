@@ -442,7 +442,7 @@ pub fn new_full(mut config: Configuration, cli: &Cli) -> Result<TaskManager, Ser
 			Duration::new(6, 0),
 			client.clone(),
 			backend.clone(),
-			frontier_backend.clone(),
+			frontier_backend,
 			3,
 			0,
 			SyncStrategy::Normal,
@@ -469,11 +469,6 @@ pub fn new_full(mut config: Configuration, cli: &Cli) -> Result<TaskManager, Ser
 			fee_history_cache,
 			fee_history_limit,
 		),
-	);
-
-	task_manager.spawn_essential_handle().spawn(
-		"frontier-schema-cache-task",
-		EthTask::ethereum_schema_cache_task(Arc::clone(&client), Arc::clone(&frontier_backend)),
 	);
 
 	#[cfg(feature = "manual-seal")]

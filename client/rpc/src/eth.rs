@@ -48,7 +48,7 @@ use sp_api::{ApiExt, BlockId, Core, HeaderT, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_runtime::{
-	traits::{BlakeTwo256, Block as BlockT, NumberFor, One, Saturating, UniqueSaturatedInto, Zero},
+	traits::{BlakeTwo256, Block as BlockT, NumberFor, One, Saturating, UniqueSaturatedInto},
 	transaction_validity::TransactionSource,
 };
 use std::{
@@ -60,7 +60,7 @@ use std::{
 use tokio::sync::{mpsc, oneshot};
 
 use crate::overrides::OverrideHandle;
-use codec::{self, Decode, Encode};
+use codec::{self, Encode};
 pub use fc_rpc_core::{EthApiServer, EthFilterApiServer, NetApiServer, Web3ApiServer};
 use fp_storage::EthereumStorageSchema;
 
@@ -322,7 +322,6 @@ where
 
 async fn filter_range_logs<B: BlockT, C, BE>(
 	client: &C,
-	backend: &fc_db::Backend<B>,
 	block_data_cache: &EthBlockDataCache<B>,
 	ret: &mut Vec<Log>,
 	max_past_logs: u32,
@@ -355,53 +354,13 @@ where
 	let address_bloom_filter = FilteredParams::adresses_bloom_filter(&filter.address);
 	let topics_bloom_filter = FilteredParams::topics_bloom_filter(&topics_input);
 
-	// Get schema cache. A single read before the block range iteration.
-	// This prevents having to do an extra DB read per block range iteration to getthe actual schema.
-	let mut local_cache: BTreeMap<NumberFor<B>, EthereumStorageSchema> = BTreeMap::new();
-	if let Ok(Some(schema_cache)) = frontier_backend_client::load_cached_schema::<B>(backend) {
-		for (schema, hash) in schema_cache {
-			if let Ok(Some(header)) = client.header(BlockId::Hash(hash)) {
-				let number = *header.number();
-				local_cache.insert(number, schema);
-			}
-		}
-	}
-	let cache_keys: Vec<NumberFor<B>> = local_cache.keys().cloned().collect();
-	let mut default_schema: Option<&EthereumStorageSchema> = None;
-	if cache_keys.len() == 1 {
-		// There is only one schema and that's the one we use.
-		default_schema = local_cache.get(&cache_keys[0]);
-	}
-
 	while current_number <= to {
 		let id = BlockId::Number(current_number);
 		let substrate_hash = client
 			.expect_block_hash_from_id(&id)
 			.map_err(|_| internal_err(format!("Expect block number from id: {}", id)))?;
 
-		let schema = match default_schema {
-			// If there is a single schema, we just assign.
-			Some(default_schema) => *default_schema,
-			_ => {
-				// If there are multiple schemas, we iterate over the - hopefully short - list
-				// of keys and assign the one belonging to the current_number.
-				// Because there are more than 1 schema, and current_number cannot be < 0,
-				// (i - 1) will always be >= 0.
-				let mut default_schema: Option<&EthereumStorageSchema> = None;
-				for (i, k) in cache_keys.iter().enumerate() {
-					if &current_number < k {
-						default_schema = local_cache.get(&cache_keys[i - 1]);
-					}
-				}
-				match default_schema {
-					Some(schema) => *schema,
-					// Fallback to DB read. This will happen i.e. when there is no cache
-					// task configured at service level.
-					_ => frontier_backend_client::onchain_storage_schema::<B, C, BE>(client, id),
-				}
-			}
-		};
-
+		let schema = frontier_backend_client::onchain_storage_schema::<B, C, BE>(client, id);
 		let block = block_data_cache.current_block(schema, substrate_hash).await;
 
 		if let Some(block) = block {
@@ -2287,7 +2246,6 @@ where
 
 				let _ = filter_range_logs(
 					client.as_ref(),
-					backend.as_ref(),
 					&block_data_cache,
 					&mut ret,
 					max_past_logs,
@@ -2585,7 +2543,6 @@ where
 
 pub struct EthFilterApi<B: BlockT, C, BE> {
 	client: Arc<C>,
-	backend: Arc<fc_db::Backend<B>>,
 	filter_pool: FilterPool,
 	max_stored_filters: usize,
 	max_past_logs: u32,
@@ -2604,7 +2561,6 @@ where
 {
 	pub fn new(
 		client: Arc<C>,
-		backend: Arc<fc_db::Backend<B>>,
 		filter_pool: FilterPool,
 		max_stored_filters: usize,
 		max_past_logs: u32,
@@ -2612,7 +2568,6 @@ where
 	) -> Self {
 		Self {
 			client,
-			backend,
 			filter_pool,
 			max_stored_filters,
 			max_past_logs,
@@ -2794,7 +2749,6 @@ where
 
 		let client = Arc::clone(&self.client);
 		let block_data_cache = Arc::clone(&self.block_data_cache);
-		let backend = Arc::clone(&self.backend);
 		let max_past_logs = self.max_past_logs;
 
 		Box::pin(async move {
@@ -2829,7 +2783,6 @@ where
 					let mut ret: Vec<Log> = Vec::new();
 					let _ = filter_range_logs(
 						client.as_ref(),
-						backend.as_ref(),
 						&block_data_cache,
 						&mut ret,
 						max_past_logs,
@@ -2871,7 +2824,6 @@ where
 
 		let client = Arc::clone(&self.client);
 		let block_data_cache = Arc::clone(&self.block_data_cache);
-		let backend = Arc::clone(&self.backend);
 		let max_past_logs = self.max_past_logs;
 
 		Box::pin(async move {
@@ -2903,7 +2855,6 @@ where
 			let mut ret: Vec<Log> = Vec::new();
 			let _ = filter_range_logs(
 				client.as_ref(),
-				backend.as_ref(),
 				&block_data_cache,
 				&mut ret,
 				max_past_logs,
@@ -2944,91 +2895,6 @@ where
 	BE: Backend<B> + 'static,
 	BE::State: StateBackend<BlakeTwo256>,
 {
-	/// Task that caches at which best hash a new EthereumStorageSchema was inserted in the Runtime Storage.
-	pub async fn ethereum_schema_cache_task(client: Arc<C>, backend: Arc<fc_db::Backend<B>>) {
-		use fp_storage::PALLET_ETHEREUM_SCHEMA;
-		use log::warn;
-		use sp_storage::{StorageData, StorageKey};
-
-		if let Ok(None) = frontier_backend_client::load_cached_schema::<B>(backend.as_ref()) {
-			let mut cache: Vec<(EthereumStorageSchema, H256)> = Vec::new();
-			let id = BlockId::Number(Zero::zero());
-			if let Ok(Some(header)) = client.header(id) {
-				let genesis_schema_version = frontier_backend_client::onchain_storage_schema::<
-					B,
-					C,
-					BE,
-				>(client.as_ref(), id);
-				cache.push((genesis_schema_version, header.hash()));
-				let _ = frontier_backend_client::write_cached_schema::<B>(backend.as_ref(), cache)
-					.map_err(|err| {
-						warn!("Error schema cache insert for genesis: {:?}", err);
-					});
-			} else {
-				warn!("Error genesis header unreachable");
-			}
-		}
-
-		// Subscribe to changes for the pallet-ethereum Schema.
-		if let Ok(mut stream) = client.storage_changes_notification_stream(
-			Some(&[StorageKey(PALLET_ETHEREUM_SCHEMA.to_vec())]),
-			None,
-		) {
-			while let Some((hash, changes)) = stream.next().await {
-				// Make sure only block hashes marked as best are referencing cache checkpoints.
-				if hash == client.info().best_hash {
-					// Just map the change set to the actual data.
-					let storage: Vec<Option<StorageData>> = changes
-						.iter()
-						.filter_map(|(o_sk, _k, v)| {
-							if o_sk.is_none() {
-								Some(v.cloned())
-							} else {
-								None
-							}
-						})
-						.collect();
-					for change in storage {
-						if let Some(data) = change {
-							// Decode the wrapped blob which's type is known.
-							let new_schema: EthereumStorageSchema =
-								Decode::decode(&mut &data.0[..]).unwrap();
-							// Cache new entry and overwrite the old database value.
-							if let Ok(Some(old_cache)) =
-								frontier_backend_client::load_cached_schema::<B>(backend.as_ref())
-							{
-								let mut new_cache: Vec<(EthereumStorageSchema, H256)> = old_cache;
-								match &new_cache[..] {
-									[.., (schema, _)] if *schema == new_schema => {
-										warn!(
-											"Schema version already in Frontier database, ignoring: {:?}",
-											new_schema
-										);
-									}
-									_ => {
-										new_cache.push((new_schema, hash));
-										let _ = frontier_backend_client::write_cached_schema::<B>(
-											backend.as_ref(),
-											new_cache,
-										)
-										.map_err(|err| {
-											warn!(
-												"Error schema cache insert for genesis: {:?}",
-												err
-											);
-										});
-									}
-								}
-							} else {
-								warn!("Error schema cache is corrupted");
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
 	pub async fn filter_pool_task(
 		client: Arc<C>,
 		filter_pool: Arc<Mutex<BTreeMap<U256, FilterPoolItem>>>,
