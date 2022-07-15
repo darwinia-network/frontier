@@ -378,6 +378,7 @@ where
 		let substrate_hash = client
 			.expect_block_hash_from_id(&id)
 			.map_err(|_| internal_err(format!("Expect block number from id: {}", id)))?;
+
 		let schema = match default_schema {
 			// If there is a single schema, we just assign.
 			Some(default_schema) => *default_schema,
@@ -2878,8 +2879,8 @@ where
 		})();
 
 		let client = Arc::clone(&self.client);
-		let backend = Arc::clone(&self.backend);
 		let block_data_cache = Arc::clone(&self.block_data_cache);
+		let backend = Arc::clone(&self.backend);
 		let max_past_logs = self.max_past_logs;
 
 		Box::pin(async move {
