@@ -11,10 +11,10 @@ futures = { version = "0.3.1", features = ["compat"] }
 futures-timer = "3.0.1"
 log = "0.4.8"
 
-sc-client-api = { git = "https://github.com/darwinia-network/substrate.git", branch = "darwinia-v0.12.4" }
-sp-api = { git = "https://github.com/darwinia-network/substrate.git", branch = "darwinia-v0.12.4" }
-sp-blockchain = { git = "https://github.com/darwinia-network/substrate.git", branch = "darwinia-v0.12.4" }
-sp-runtime = { git = "https://github.com/darwinia-network/substrate.git", branch = "darwinia-v0.12.4" }
+sc-client-api = { git = "https://github.com/darwinia-network/substrate.git", branch = "darwinia-v0.12.5" }
+sp-api = { git = "https://github.com/darwinia-network/substrate.git", branch = "darwinia-v0.12.5" }
+sp-blockchain = { git = "https://github.com/darwinia-network/substrate.git", branch = "darwinia-v0.12.5" }
+sp-runtime = { git = "https://github.com/darwinia-network/substrate.git", branch = "darwinia-v0.12.5" }
 
 fc-db = { version = "2.0.0-dev", path = "../db" }
 fp-consensus = { version = "2.0.0-dev", path = "../../primitives/consensus" }

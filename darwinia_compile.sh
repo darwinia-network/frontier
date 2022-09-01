@@ -8,10 +8,10 @@ crates=(
    fp-rpc
    fp-self-contained
    fp-storage
-   pallet-evm
    fc-db
    fc-rpc
    fc-rpc-core
+   pallet-evm
    pallet-base-fee
    pallet-evm-precompile-modexp
    pallet-evm-precompile-sha3fips
