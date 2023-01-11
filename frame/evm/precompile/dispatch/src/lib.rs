@@ -17,6 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[macro_use]
 extern crate alloc;
 
 #[cfg(test)]
@@ -94,8 +95,10 @@ where
 					output: Default::default(),
 				})
 			}
-			Err(_) => Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("dispatch execution failed".into()),
+			Err(e) => Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other(
+					format!("dispatch execution failed: {}", <&'static str>::from(e)).into(),
+				),
 			}),
 		}
 	}
