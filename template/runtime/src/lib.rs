@@ -235,6 +235,7 @@ impl pallet_grandpa::Config for Runtime {
 
 	type WeightInfo = ();
 	type MaxAuthorities = ConstU32<32>;
+	type MaxSetIdSessionEntries = ();
 }
 
 parameter_types! {
@@ -807,6 +808,10 @@ impl_runtime_apis! {
 		) -> pallet_transaction_payment::FeeDetails<Balance> {
 			TransactionPayment::query_fee_details(uxt, len)
 		}
+
+		fn query_weight_to_fee(_: Weight) -> Balance { todo!() }
+
+		fn query_length_to_fee(_: u32) -> Balance { todo!() }
 	}
 
 	impl sp_session::SessionKeys<Block> for Runtime {
