@@ -44,7 +44,7 @@ use frame_support::{
 	dispatch::{DispatchInfo, DispatchResultWithPostInfo, Pays, PostDispatchInfo},
 	scale_info::TypeInfo,
 	traits::{EnsureOrigin, Get, PalletInfoAccess},
-	weights::Weight,
+	weights::Weight, error::BadOrigin,
 };
 use frame_system::{pallet_prelude::OriginFor, CheckWeight, WeightInfo};
 use pallet_evm::{BlockHashMapping, FeeCalculator, GasWeightMapping, Runner};
@@ -84,6 +84,11 @@ impl<O: Into<Result<RawOrigin, O>> + From<RawOrigin>> EnsureOrigin<O>
 	for EnsureEthereumTransaction
 {
 	type Success = H160;
+
+	fn ensure_origin(o: O) -> Result<Self::Success, BadOrigin> {
+		Self::try_origin(o).map_err(|_| BadOrigin)
+	}
+
 	fn try_origin(o: O) -> Result<Self::Success, O> {
 		o.into().map(|o| match o {
 			RawOrigin::EthereumTransaction(id) => id,
@@ -91,8 +96,8 @@ impl<O: Into<Result<RawOrigin, O>> + From<RawOrigin>> EnsureOrigin<O>
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn successful_origin() -> O {
-		O::from(RawOrigin::EthereumTransaction(Default::default()))
+	fn try_successful_origin() -> Result<O, ()> {
+		Ok(O::from(RawOrigin::EthereumTransaction(Default::default())))
 	}
 }
 
