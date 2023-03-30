@@ -18,13 +18,27 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use ark_bls12_377::{Fq, G1Affine, G1Projective};
-use ark_ec::CurveGroup;
+use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{BigInt, PrimeField, Zero};
-use ark_serialize::{CanonicalSerialize, Compress};
 use fp_evm::{
 	ExitError, ExitSucceed, Precompile, PrecompileFailure, PrecompileOutput, PrecompileResult,
 };
 use num_bigint::BigUint;
+
+pub(crate) fn serialize_fq(field: Fq) -> [u8; 48] {
+	let mut result = [0u8; 48];
+
+	let rep = field.into_bigint();
+
+	result[0..8].copy_from_slice(&rep.0[5].to_be_bytes());
+	result[8..16].copy_from_slice(&rep.0[4].to_be_bytes());
+	result[16..24].copy_from_slice(&rep.0[3].to_be_bytes());
+	result[24..32].copy_from_slice(&rep.0[2].to_be_bytes());
+	result[32..40].copy_from_slice(&rep.0[1].to_be_bytes());
+	result[40..48].copy_from_slice(&rep.0[0].to_be_bytes());
+
+	result
+}
 
 /// Copy bytes from input to target.
 fn read_input(source: &[u8], target: &mut [u8], offset: usize) {
@@ -105,24 +119,19 @@ impl Precompile for BLS12377G1Add {
 		let p0 = read_point(input, 0)?;
 		let p1 = read_point(input, 128)?;
 
+		let mut output = [0u8; 128];
 		let sum = (p0 + p1).into_affine();
 
-		let size = sum.serialized_size(Compress::No);
-		if size != 128 {
-			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Invalid serialize size".into()),
-			});
+		if !sum.is_zero() {
+			let x_bytes = serialize_fq(sum.x);
+			output[16..64].copy_from_slice(&x_bytes[..]);
+			let y_bytes = serialize_fq(sum.y);
+			output[80..128].copy_from_slice(&y_bytes[..]);
 		}
-
-		let mut uncompressed_bytes = Vec::new();
-		sum.serialize_uncompressed(&mut uncompressed_bytes)
-			.map_err(|_| PrecompileFailure::Error {
-				exit_status: ExitError::Other("Serialize failed".into()),
-			})?;
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
-			output: uncompressed_bytes.to_vec(),
+			output: output.to_vec(),
 		})
 	}
 }

@@ -4994,7 +4994,6 @@ dependencies = [
  "ark-bls12-377",
  "ark-ec",
  "ark-ff",
- "ark-serialize",
  "fp-evm",
  "num-bigint",
 ]
