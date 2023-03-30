@@ -9,6 +9,7 @@ repository = { workspace = true }
 ark-bls12-377 = { version = "0.4.0", default-features = false, features = ["curve"] }
 ark-ec = { version = "0.4.2", default-features = false }
 ark-ff = { version = "0.4.2", default-features = false }
+ark-serialize = { version = "0.4.2", default-features = false }
 num-bigint = { version = "0.4.3", default-features = false }
 
 # Frontier
@@ -16,4 +17,4 @@ fp-evm = { workspace = true }
 
 [features]
 default = ["std"]
-std = ["ark-bls12-377/std", "fp-evm/std", "ark-ec/std", "ark-ff/std", "num-bigint/std"]
+std = ["ark-bls12-377/std", "ark-serialize/std" , "fp-evm/std", "ark-ec/std", "ark-ff/std", "num-bigint/std"]

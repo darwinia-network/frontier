@@ -18,8 +18,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use ark_bls12_377::{Fq, G1Affine, G1Projective};
-use ark_ec::{models::short_weierstrass::Projective, AffineRepr, CurveGroup};
+use ark_ec::CurveGroup;
 use ark_ff::{BigInt, PrimeField, Zero};
+use ark_serialize::{CanonicalSerialize, Compress};
 use fp_evm::{
 	ExitError, ExitSucceed, Precompile, PrecompileFailure, PrecompileOutput, PrecompileResult,
 };
@@ -104,10 +105,24 @@ impl Precompile for BLS12377G1Add {
 		let p0 = read_point(input, 0)?;
 		let p1 = read_point(input, 128)?;
 
-		let mut buf = [0u8; 64];
+		let sum = (p0 + p1).into_affine();
+
+		let size = sum.serialized_size(Compress::No);
+		if size != 128 {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("Invalid serialize size".into()),
+			});
+		}
+
+		let mut uncompressed_bytes = Vec::new();
+		sum.serialize_uncompressed(&mut uncompressed_bytes)
+			.map_err(|_| PrecompileFailure::Error {
+				exit_status: ExitError::Other("Serialize failed".into()),
+			})?;
+
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
-			output: buf.to_vec(),
+			output: uncompressed_bytes.to_vec(),
 		})
 	}
 }
