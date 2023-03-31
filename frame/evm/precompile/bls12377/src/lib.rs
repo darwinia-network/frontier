@@ -17,15 +17,16 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use ark_bls12_377::{Fq, G1Affine, G1Projective};
+use ark_bls12_377::{Fq, Fr, G1Affine, G1Projective};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{BigInt, PrimeField, Zero};
+use ark_std::ops::Mul;
 use fp_evm::{
 	ExitError, ExitSucceed, Precompile, PrecompileFailure, PrecompileOutput, PrecompileResult,
 };
 use num_bigint::BigUint;
 
-pub(crate) fn serialize_fq(field: Fq) -> [u8; 48] {
+fn serialize_fq(field: Fq) -> [u8; 48] {
 	let mut result = [0u8; 48];
 
 	let rep = field.into_bigint();
@@ -40,10 +41,37 @@ pub(crate) fn serialize_fq(field: Fq) -> [u8; 48] {
 	result
 }
 
+fn serialize_g1(g1: G1Affine) -> [u8; 128] {
+	let mut result = [0u8; 128];
+	if !g1.is_zero() {
+		let x_bytes = serialize_fq(g1.x);
+		result[16..64].copy_from_slice(&x_bytes[..]);
+		let y_bytes = serialize_fq(g1.y);
+		result[80..128].copy_from_slice(&y_bytes[..]);
+	}
+	result
+}
+
 /// Copy bytes from input to target.
 fn read_input(source: &[u8], target: &mut [u8], offset: usize) {
 	let len = target.len();
 	target[..len].copy_from_slice(&source[offset..][..len]);
+}
+
+fn read_fr(input: &[u8], start_inx: usize) -> Result<Fr, PrecompileFailure> {
+	let mut result = [0u8; 32];
+	read_input(input, &mut result, start_inx);
+	let fr_bn = BigInt::try_from(BigUint::from_bytes_be(&result)).map_err(|_| {
+		PrecompileFailure::Error {
+			exit_status: ExitError::Other("Invalid scalar".into()),
+		}
+	})?;
+	match Fr::from_bigint(fr_bn) {
+		None => Err(PrecompileFailure::Error {
+			exit_status: ExitError::Other("Scalar is great than MODULUS".into()),
+		}),
+		Some(fr) => Ok(fr),
+	}
 }
 
 fn read_point(input: &[u8], start_inx: usize) -> Result<G1Projective, PrecompileFailure> {
@@ -119,15 +147,44 @@ impl Precompile for BLS12377G1Add {
 		let p0 = read_point(input, 0)?;
 		let p1 = read_point(input, 128)?;
 
-		let mut output = [0u8; 128];
-		let sum = (p0 + p1).into_affine();
+		let sum = p0 + p1;
 
-		if !sum.is_zero() {
-			let x_bytes = serialize_fq(sum.x);
-			output[16..64].copy_from_slice(&x_bytes[..]);
-			let y_bytes = serialize_fq(sum.y);
-			output[80..128].copy_from_slice(&y_bytes[..]);
+		let output = serialize_g1(sum.into_affine());
+
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Returned,
+			output: output.to_vec(),
+		})
+	}
+}
+
+/// BLS12377G1Mul implements EIP-2539 G1Mul precompile.
+pub struct BLS12377G1Mul;
+
+impl BLS12377G1Mul {
+	/// https://eips.ethereum.org/EIPS/eip-2539#g1-multiplication
+	const GAS_COST: u64 = 12_000;
+}
+
+impl Precompile for BLS12377G1Mul {
+	/// Implements EIP-2539 G1Mul precompile.
+	/// > G1 multiplication call expects `160` bytes as an input that is interpreted as byte concatenation of encoding of G1 point (`128` bytes) and encoding of a scalar value (`32` bytes).
+	/// > Output is an encoding of multiplication operation result - single G1 point (`128` bytes).
+	fn execute(handle: &mut impl fp_evm::PrecompileHandle) -> PrecompileResult {
+		handle.record_cost(BLS12377G1Mul::GAS_COST)?;
+
+		let input = handle.input();
+		if input.len() != 160 {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("Input must contain 160 bytes".into()),
+			});
 		}
+
+		let p = read_point(input, 0)?;
+		let scalar = read_fr(input, 128)?;
+		let q = p.mul(scalar);
+
+		let output = serialize_g1(q.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
