@@ -333,7 +333,7 @@ impl Precompile for BLS12377G1MultiExp {
 		let k = handle.input().len() / 160;
 		if handle.input().is_empty() || handle.input().len() % 160 != 0 {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Input must contain 160 bytes".into()),
+				exit_status: ExitError::Other("Input input length".into()),
 			});
 		}
 
@@ -399,7 +399,7 @@ impl Precompile for BLS12377G2Add {
 	}
 }
 
-/// bls12377G2Mul implements EIP-2539 G2Mul precompile.
+/// BLS12377G2Mul implements EIP-2539 G2Mul precompile.
 pub struct BLS12377G2Mul;
 
 impl BLS12377G2Mul {
@@ -427,6 +427,69 @@ impl Precompile for BLS12377G2Mul {
 
 		let output = serialize_g2(q.into_affine());
 
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Returned,
+			output: output.to_vec(),
+		})
+	}
+}
+
+// BLS12377G2MultiExp implements EIP-2539 G2MultiExp precompile.
+pub struct BLS12377G2MultiExp;
+
+impl BLS12377G2MultiExp {
+	const MULTIPLIER: u64 = 1_000;
+
+	/// Returns the gas required to execute the pre-compiled contract.
+	fn calculate_gas_cost(input_len: usize) -> u64 {
+		let k = input_len / 288;
+		if k == 0 {
+			return 0;
+		}
+		let d_len = BLS12377_MULTIEXP_DISCOUNT_TABLE.len();
+		let discount = if k < d_len {
+			BLS12377_MULTIEXP_DISCOUNT_TABLE[k - 1]
+		} else {
+			BLS12377_MULTIEXP_DISCOUNT_TABLE[d_len - 1]
+		};
+		k as u64 * BLS12377G2Mul::GAS_COST * discount as u64 / BLS12377G2MultiExp::MULTIPLIER
+	}
+}
+
+impl Precompile for BLS12377G2MultiExp {
+	/// Implements EIP-2539 G2MultiExp precompile logic
+	/// > G2 multiplication call expects `288*k` bytes as an input that is interpreted as byte concatenation of `k` slices each of them being a byte concatenation of encoding of G2 point (`256` bytes) and encoding of a scalar value (`32` bytes).
+	/// > Output is an encoding of multiexponentiation operation result - single G2 point (`256` bytes).
+	fn execute(handle: &mut impl fp_evm::PrecompileHandle) -> PrecompileResult {
+		let gas_cost = BLS12377G2MultiExp::calculate_gas_cost(handle.input().len());
+		handle.record_cost(gas_cost)?;
+
+		let k = handle.input().len() / 288;
+		if handle.input().is_empty() || handle.input().len() % 288 != 0 {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("Input input length".into()),
+			});
+		}
+
+		let input = handle.input();
+
+		let mut points = Vec::new();
+		let mut scalars = Vec::new();
+		for idx in 0..k {
+			let offset = idx * 288;
+			let p = read_g2(input, offset)?;
+			let scalar = read_fr(input, offset + 256)?;
+			points.push(p.into_affine());
+			scalars.push(scalar);
+		}
+
+		let r = G2Projective::msm(&points.to_vec(), &scalars.to_vec()).map_err(|_| {
+			PrecompileFailure::Error {
+				exit_status: ExitError::Other("MSM failed".into()),
+			}
+		})?;
+
+		let output = serialize_g2(r.into_affine());
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
 			output: output.to_vec(),
