@@ -539,8 +539,7 @@ impl Precompile for BLS12377Pairing {
 		}
 
 		let mut output = [0u8; 32];
-		let r = Bls12_377::multi_pairing(a, b).is_zero();
-		if r {
+		if Bls12_377::multi_pairing(a, b).is_zero() {
 			output[31] = 1;
 		}
 
