@@ -18,13 +18,24 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use ark_bls12_377::{Fq, Fr, G1Affine, G1Projective};
-use ark_ec::{AffineRepr, CurveGroup};
+use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInt, PrimeField, Zero};
 use ark_std::ops::Mul;
 use fp_evm::{
 	ExitError, ExitSucceed, Precompile, PrecompileFailure, PrecompileOutput, PrecompileResult,
 };
 use num_bigint::BigUint;
+
+/// Gas discount table for BLS12-377 G1 and G2 multi exponentiation operations
+const BLS12377_MULTIEXP_DISCOUNT_TABLE: [u16; 128] = [
+	1200, 888, 764, 641, 594, 547, 500, 453, 438, 423, 408, 394, 379, 364, 349, 334, 330, 326, 322,
+	318, 314, 310, 306, 302, 298, 294, 289, 285, 281, 277, 273, 269, 268, 266, 265, 263, 262, 260,
+	259, 257, 256, 254, 253, 251, 250, 248, 247, 245, 244, 242, 241, 239, 238, 236, 235, 233, 232,
+	231, 229, 228, 226, 225, 223, 222, 221, 220, 219, 219, 218, 217, 216, 216, 215, 214, 213, 213,
+	212, 211, 211, 210, 209, 208, 208, 207, 206, 205, 205, 204, 203, 202, 202, 201, 200, 199, 199,
+	198, 197, 196, 196, 195, 194, 193, 193, 192, 191, 191, 190, 189, 188, 188, 187, 186, 185, 185,
+	184, 183, 182, 182, 181, 180, 179, 179, 178, 177, 176, 176, 175, 174,
+];
 
 fn serialize_fq(field: Fq) -> [u8; 48] {
 	let mut result = [0u8; 48];
@@ -186,6 +197,69 @@ impl Precompile for BLS12377G1Mul {
 
 		let output = serialize_g1(q.into_affine());
 
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Returned,
+			output: output.to_vec(),
+		})
+	}
+}
+
+/// BLS12377G1MultiExp implements EIP-2539 G1MultiExp precompile.
+pub struct BLS12377G1MultiExp;
+
+impl BLS12377G1MultiExp {
+	const MULTIPLIER: u64 = 1_000;
+
+	/// Returns the gas required to execute the pre-compiled contract.
+	fn calculate_gas_cost(input_len: usize) -> u64 {
+		let k = input_len / 160;
+		if k == 0 {
+			return 0;
+		}
+		let d_len = BLS12377_MULTIEXP_DISCOUNT_TABLE.len();
+		let discount = if k < d_len {
+			BLS12377_MULTIEXP_DISCOUNT_TABLE[k - 1]
+		} else {
+			BLS12377_MULTIEXP_DISCOUNT_TABLE[d_len - 1]
+		};
+		k as u64 * BLS12377G1Mul::GAS_COST * discount as u64 / BLS12377G1MultiExp::MULTIPLIER
+	}
+}
+
+impl Precompile for BLS12377G1MultiExp {
+	/// Implements EIP-2539 G1MultiExp precompile.
+	/// G1 multiplication call expects `160*k` bytes as an input that is interpreted as byte concatenation of `k` slices each of them being a byte concatenation of encoding of G1 point (`128` bytes) and encoding of a scalar value (`32` bytes).
+	/// Output is an encoding of multiexponentiation operation result - single G1 point (`128` bytes).
+	fn execute(handle: &mut impl fp_evm::PrecompileHandle) -> PrecompileResult {
+		let gas_cost = BLS12377G1MultiExp::calculate_gas_cost(handle.input().len());
+		handle.record_cost(gas_cost)?;
+
+		let k = handle.input().len() / 160;
+		if handle.input().is_empty() || handle.input().len() % 160 != 0 {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("Input must contain 160 bytes".into()),
+			});
+		}
+
+		let input = handle.input();
+
+		let mut points = Vec::new();
+		let mut scalars = Vec::new();
+		for idx in 0..k {
+			let offset = idx * 160;
+			let p = read_point(input, offset)?;
+			let scalar = read_fr(input, offset + 128)?;
+			points.push(p.into_affine());
+			scalars.push(scalar);
+		}
+
+		let r = G1Projective::msm(&points.to_vec(), &scalars.to_vec()).map_err(|_| {
+			PrecompileFailure::Error {
+				exit_status: ExitError::Other("MSM failed".into()),
+			}
+		})?;
+
+		let output = serialize_g1(r.into_affine());
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
 			output: output.to_vec(),
