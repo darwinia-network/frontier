@@ -17,7 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use ark_bls12_377::{Fq, Fr, G1Affine, G1Projective};
+use ark_bls12_377::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInt, PrimeField, Zero};
 use ark_std::ops::Mul;
@@ -63,6 +63,21 @@ fn serialize_g1(g1: G1Affine) -> [u8; 128] {
 	result
 }
 
+fn serialize_g2(g2: G2Affine) -> [u8; 256] {
+	let mut result = [0u8; 256];
+	if !g2.is_zero() {
+		let x0_bytes = serialize_fq(g2.x.c0);
+		result[16..64].copy_from_slice(&x0_bytes[..]);
+		let x1_bytes = serialize_fq(g2.x.c1);
+		result[80..128].copy_from_slice(&x1_bytes[..]);
+		let y0_bytes = serialize_fq(g2.y.c0);
+		result[144..192].copy_from_slice(&y0_bytes[..]);
+		let y1_bytes = serialize_fq(g2.y.c1);
+		result[208..256].copy_from_slice(&y1_bytes[..]);
+	}
+	result
+}
+
 /// Copy bytes from input to target.
 fn read_input(source: &[u8], target: &mut [u8], offset: usize) {
 	let len = target.len();
@@ -85,7 +100,7 @@ fn read_fr(input: &[u8], start_inx: usize) -> Result<Fr, PrecompileFailure> {
 	}
 }
 
-fn read_point(input: &[u8], start_inx: usize) -> Result<G1Projective, PrecompileFailure> {
+fn read_g1(input: &[u8], start_inx: usize) -> Result<G1Projective, PrecompileFailure> {
 	let mut px_buf = [0u8; 64];
 	let mut py_buf = [0u8; 64];
 	read_input(input, &mut px_buf, start_inx);
@@ -133,6 +148,87 @@ fn read_point(input: &[u8], start_inx: usize) -> Result<G1Projective, Precompile
 	}
 }
 
+fn read_g2(input: &[u8], start_inx: usize) -> Result<G2Projective, PrecompileFailure> {
+	// TODO: check
+	let mut px0_buf = [0u8; 64];
+	let mut px1_buf = [0u8; 64];
+	let mut py0_buf = [0u8; 64];
+	let mut py1_buf = [0u8; 64];
+	read_input(input, &mut px0_buf, start_inx);
+	read_input(input, &mut px1_buf, start_inx + 64);
+	read_input(input, &mut py0_buf, start_inx + 128);
+	read_input(input, &mut py1_buf, start_inx + 192);
+
+	let px0_bn = BigInt::try_from(BigUint::from_bytes_be(&px0_buf)).map_err(|_| {
+		PrecompileFailure::Error {
+			exit_status: ExitError::Other("Invalid point x0 coordinate".into()),
+		}
+	})?;
+	let px1_bn = BigInt::try_from(BigUint::from_bytes_be(&px1_buf)).map_err(|_| {
+		PrecompileFailure::Error {
+			exit_status: ExitError::Other("Invalid point x1 coordinate".into()),
+		}
+	})?;
+	let py0_bn = BigInt::try_from(BigUint::from_bytes_be(&py0_buf)).map_err(|_| {
+		PrecompileFailure::Error {
+			exit_status: ExitError::Other("Invalid point y1 coordinate".into()),
+		}
+	})?;
+	let py1_bn = BigInt::try_from(BigUint::from_bytes_be(&py1_buf)).map_err(|_| {
+		PrecompileFailure::Error {
+			exit_status: ExitError::Other("Invalid point y1 coordinate".into()),
+		}
+	})?;
+
+	let px0 = match Fq::from_bigint(px0_bn) {
+		None => {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("Point x0 coordinate is great than MODULUS".into()),
+			})
+		}
+		Some(x0) => x0,
+	};
+	let px1 = match Fq::from_bigint(px1_bn) {
+		None => {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("Point x0 coordinate is great than MODULUS".into()),
+			})
+		}
+		Some(x1) => x1,
+	};
+	let py0 = match Fq::from_bigint(py0_bn) {
+		None => {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("Point y0 coordinate is great than MODULUS".into()),
+			})
+		}
+		Some(y0) => y0,
+	};
+	let py1 = match Fq::from_bigint(py1_bn) {
+		None => {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("Point y1 coordinate is great than MODULUS".into()),
+			})
+		}
+		Some(y1) => y1,
+	};
+	let px = Fq2::new(px0, px1);
+	let py = Fq2::new(py0, py1);
+
+	if px.is_zero() && py.is_zero() {
+		Ok(G2Projective::zero())
+	} else {
+		let g2 = G2Affine::new_unchecked(px, py);
+		if !g2.is_on_curve() || !g2.is_in_correct_subgroup_assuming_on_curve() {
+			Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("Point is not on curve".into()),
+			})
+		} else {
+			Ok(g2.into())
+		}
+	}
+}
+
 /// bls12377G1Add implements EIP-2539 G1Add precompile.
 pub struct BLS12377G1Add;
 
@@ -155,8 +251,8 @@ impl Precompile for BLS12377G1Add {
 			});
 		}
 
-		let p0 = read_point(input, 0)?;
-		let p1 = read_point(input, 128)?;
+		let p0 = read_g1(input, 0)?;
+		let p1 = read_g1(input, 128)?;
 
 		let sum = p0 + p1;
 
@@ -191,7 +287,7 @@ impl Precompile for BLS12377G1Mul {
 			});
 		}
 
-		let p = read_point(input, 0)?;
+		let p = read_g1(input, 0)?;
 		let scalar = read_fr(input, 128)?;
 		let q = p.mul(scalar);
 
@@ -247,7 +343,7 @@ impl Precompile for BLS12377G1MultiExp {
 		let mut scalars = Vec::new();
 		for idx in 0..k {
 			let offset = idx * 160;
-			let p = read_point(input, offset)?;
+			let p = read_g1(input, offset)?;
 			let scalar = read_fr(input, offset + 128)?;
 			points.push(p.into_affine());
 			scalars.push(scalar);
@@ -260,6 +356,42 @@ impl Precompile for BLS12377G1MultiExp {
 		})?;
 
 		let output = serialize_g1(r.into_affine());
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Returned,
+			output: output.to_vec(),
+		})
+	}
+}
+
+/// bls12377G2Add implements EIP-2539 G2Add precompile.
+pub struct BLS12377G2Add;
+
+impl BLS12377G2Add {
+	/// https://eips.ethereum.org/EIPS/eip-2539#g2-addition
+	const GAS_COST: u64 = 4_500;
+}
+
+impl Precompile for BLS12377G2Add {
+	/// Implements EIP-2539 G2Add precompile.
+	/// > G2 addition call expects `512` bytes as an input that is interpreted as byte concatenation of two G2 points (`256` bytes each).
+	/// > Output is an encoding of addition operation result - single G2 point (`256` bytes).
+	fn execute(handle: &mut impl fp_evm::PrecompileHandle) -> PrecompileResult {
+		handle.record_cost(BLS12377G2Add::GAS_COST)?;
+
+		let input = handle.input();
+		if input.len() != 512 {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("Input must contain 512 bytes".into()),
+			});
+		}
+
+		let p0 = read_g2(input, 0)?;
+		let p1 = read_g2(input, 256)?;
+
+		let sum = p0 + p1;
+
+		let output = serialize_g2(sum.into_affine());
+
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
 			output: output.to_vec(),
