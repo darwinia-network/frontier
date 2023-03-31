@@ -17,8 +17,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use ark_bls12_377::{Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
-use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
+use ark_bls12_377::{Bls12_377, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInt, PrimeField, Zero};
 use ark_std::ops::Mul;
 use fp_evm::{
@@ -92,6 +92,7 @@ fn read_fr(input: &[u8], start_inx: usize) -> Result<Fr, PrecompileFailure> {
 			exit_status: ExitError::Other("Invalid scalar".into()),
 		}
 	})?;
+	// TODO:: Multiplication by the unnormalized scalar (scalar + group_order) * P = scalar * P
 	match Fr::from_bigint(fr_bn) {
 		None => Err(PrecompileFailure::Error {
 			exit_status: ExitError::Other("Scalar is great than MODULUS".into()),
@@ -490,6 +491,59 @@ impl Precompile for BLS12377G2MultiExp {
 		})?;
 
 		let output = serialize_g2(r.into_affine());
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Returned,
+			output: output.to_vec(),
+		})
+	}
+}
+
+/// BLS12377Pairing implements EIP-2539 Pairing precompile.
+pub struct BLS12377Pairing;
+
+impl BLS12377Pairing {
+	/// https://eips.ethereum.org/EIPS/eip-2539#pairing-operation
+	const BASE_GAS: u64 = 65000;
+	const PER_PAIR_GAS: u64 = 55000;
+}
+
+impl Precompile for BLS12377Pairing {
+	/// Implements EIP-2539 Pairing precompile logic.
+	/// > Pairing call expects `384*k` bytes as an inputs that is interpreted as byte concatenation of `k` slices. Each slice has the following structure:
+	/// > - `128` bytes of G1 point encoding
+	/// > - `256` bytes of G2 point encoding
+	/// > Output is a `32` bytes where last single byte is `0x01` if pairing result is equal to multiplicative identity in a pairing target field and `0x00` otherwise
+	/// > (which is equivalent of Big Endian encoding of Solidity values `uint256(1)` and `uin256(0)` respectively).
+	fn execute(handle: &mut impl fp_evm::PrecompileHandle) -> PrecompileResult {
+		if handle.input().is_empty() || handle.input().len() % 384 != 0 {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("Input input length".into()),
+			});
+		}
+
+		let k = handle.input().len() / 384;
+		let gas_cost: u64 = BLS12377Pairing::BASE_GAS + (k as u64 * BLS12377Pairing::PER_PAIR_GAS);
+
+		handle.record_cost(gas_cost)?;
+
+		let input = handle.input();
+
+		let mut a = Vec::new();
+		let mut b = Vec::new();
+		for idx in 0..k {
+			let offset = idx * 384;
+			let g1 = read_g1(input, offset)?;
+			let g2 = read_g2(input, offset + 128)?;
+			a.push(g1);
+			b.push(g2);
+		}
+
+		let mut output = [0u8; 32];
+		let r = Bls12_377::multi_pairing(a, b).is_zero();
+		if r {
+			output[31] = 1;
+		}
+
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
 			output: output.to_vec(),
