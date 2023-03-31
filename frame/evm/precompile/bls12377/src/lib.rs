@@ -398,3 +398,38 @@ impl Precompile for BLS12377G2Add {
 		})
 	}
 }
+
+/// bls12377G2Mul implements EIP-2539 G2Mul precompile.
+pub struct BLS12377G2Mul;
+
+impl BLS12377G2Mul {
+	// https://eips.ethereum.org/EIPS/eip-2539#g2-multiplication
+	const GAS_COST: u64 = 55_000;
+}
+
+impl Precompile for BLS12377G2Mul {
+	/// Implements EIP-2539 G2MUL precompile logic.
+	/// > G2 multiplication call expects `288` bytes as an input that is interpreted as byte concatenation of encoding of G2 point (`256` bytes) and encoding of a scalar value (`32` bytes).
+	/// > Output is an encoding of multiplication operation result - single G2 point (`256` bytes).
+	fn execute(handle: &mut impl fp_evm::PrecompileHandle) -> PrecompileResult {
+		handle.record_cost(BLS12377G2Mul::GAS_COST)?;
+
+		let input = handle.input();
+		if input.len() != 288 {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("Input must contain 288 bytes".into()),
+			});
+		}
+
+		let p = read_g2(input, 0)?;
+		let scalar = read_fr(input, 256)?;
+		let q = p.mul(scalar);
+
+		let output = serialize_g2(q.into_affine());
+
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Returned,
+			output: output.to_vec(),
+		})
+	}
+}
