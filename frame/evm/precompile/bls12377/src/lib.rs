@@ -87,18 +87,7 @@ fn read_input(source: &[u8], target: &mut [u8], offset: usize) {
 fn read_fr(input: &[u8], start_inx: usize) -> Result<Fr, PrecompileFailure> {
 	let mut result = [0u8; 32];
 	read_input(input, &mut result, start_inx);
-	let fr_bn = BigInt::try_from(BigUint::from_bytes_be(&result)).map_err(|_| {
-		PrecompileFailure::Error {
-			exit_status: ExitError::Other("Invalid scalar".into()),
-		}
-	})?;
-	// TODO:: Multiplication by the unnormalized scalar (scalar + group_order) * P = scalar * P
-	match Fr::from_bigint(fr_bn) {
-		None => Err(PrecompileFailure::Error {
-			exit_status: ExitError::Other("Scalar is great than MODULUS".into()),
-		}),
-		Some(fr) => Ok(fr),
-	}
+	Ok(Fr::from_be_bytes_mod_order(&result))
 }
 
 fn read_g1(input: &[u8], start_inx: usize) -> Result<G1Projective, PrecompileFailure> {
