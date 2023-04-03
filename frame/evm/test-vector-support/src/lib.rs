@@ -26,7 +26,7 @@ use sp_core::{H160, H256};
 struct EthConsensusTest {
 	input: String,
 	expected: String,
-	name: String,
+	name: Option<String>,
 	gas: Option<u64>,
 }
 
@@ -123,28 +123,45 @@ pub fn test_precompile_test_vectors<P: Precompile>(filepath: &str) -> Result<(),
 		match P::execute(&mut handle) {
 			Ok(result) => {
 				let as_hex: String = hex::encode(result.output);
-				assert_eq!(
-					result.exit_status,
-					ExitSucceed::Returned,
-					"test '{}' returned {:?} (expected 'Returned')",
-					test.name,
-					result.exit_status
-				);
-				assert_eq!(
-					as_hex, test.expected,
-					"test '{}' failed (different output)",
-					test.name
-				);
-				if let Some(expected_gas) = test.gas {
-					assert_eq!(
-						handle.gas_used, expected_gas,
-						"test '{}' failed (different gas cost)",
-						test.name
-					);
+				match test.name {
+					Some(name) => {
+						assert_eq!(
+							result.exit_status,
+							ExitSucceed::Returned,
+							"test '{}' returned {:?} (expected 'Returned')",
+							name,
+							result.exit_status
+						);
+						assert_eq!(
+							as_hex, test.expected,
+							"test '{}' failed (different output)",
+							name
+						);
+						if let Some(expected_gas) = test.gas {
+							assert_eq!(
+								handle.gas_used, expected_gas,
+								"test '{}' failed (different gas cost)",
+								name
+							);
+						}
+					}
+					None => {
+						assert_eq!(
+							result.exit_status,
+							ExitSucceed::Returned,
+							"returned {:?} (expected 'Returned')",
+							result.exit_status
+						);
+						assert_eq!(as_hex, test.expected, "failed (different output)");
+					}
 				}
 			}
 			Err(err) => {
-				return Err(format!("Test '{}' returned error: {:?}", test.name, err));
+				if let Some(name) = test.name {
+					return Err(format!("Test '{}' returned error: {:?}", name, err));
+				} else {
+					return Err(format!("returned error: {:?}", err));
+				}
 			}
 		}
 	}

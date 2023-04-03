@@ -15,6 +15,10 @@ num-bigint = { version = "0.4.3", default-features = false }
 # Frontier
 fp-evm = { workspace = true }
 
+[dev-dependencies]
+# Frontier
+pallet-evm-test-vector-support = { workspace = true }
+
 [features]
 default = ["std"]
 std = ["ark-std/std", "ark-bls12-377/std", "fp-evm/std", "ark-ec/std", "ark-ff/std", "num-bigint/std"]
