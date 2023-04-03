@@ -37,7 +37,7 @@ const BLS12377_MULTIEXP_DISCOUNT_TABLE: [u16; 128] = [
 	184, 183, 182, 182, 181, 180, 179, 179, 178, 177, 176, 176, 175, 174,
 ];
 
-fn serialize_fq(field: Fq) -> [u8; 48] {
+fn write_fq(field: Fq) -> [u8; 48] {
 	let mut result = [0u8; 48];
 
 	let rep = field.into_bigint();
@@ -52,27 +52,27 @@ fn serialize_fq(field: Fq) -> [u8; 48] {
 	result
 }
 
-fn serialize_g1(g1: G1Affine) -> [u8; 128] {
+fn write_g1(g1: G1Affine) -> [u8; 128] {
 	let mut result = [0u8; 128];
 	if !g1.is_zero() {
-		let x_bytes = serialize_fq(g1.x);
+		let x_bytes = write_fq(g1.x);
 		result[16..64].copy_from_slice(&x_bytes[..]);
-		let y_bytes = serialize_fq(g1.y);
+		let y_bytes = write_fq(g1.y);
 		result[80..128].copy_from_slice(&y_bytes[..]);
 	}
 	result
 }
 
-fn serialize_g2(g2: G2Affine) -> [u8; 256] {
+fn write_g2(g2: G2Affine) -> [u8; 256] {
 	let mut result = [0u8; 256];
 	if !g2.is_zero() {
-		let x0_bytes = serialize_fq(g2.x.c0);
+		let x0_bytes = write_fq(g2.x.c0);
 		result[16..64].copy_from_slice(&x0_bytes[..]);
-		let x1_bytes = serialize_fq(g2.x.c1);
+		let x1_bytes = write_fq(g2.x.c1);
 		result[80..128].copy_from_slice(&x1_bytes[..]);
-		let y0_bytes = serialize_fq(g2.y.c0);
+		let y0_bytes = write_fq(g2.y.c0);
 		result[144..192].copy_from_slice(&y0_bytes[..]);
-		let y1_bytes = serialize_fq(g2.y.c1);
+		let y1_bytes = write_fq(g2.y.c1);
 		result[208..256].copy_from_slice(&y1_bytes[..]);
 	}
 	result
@@ -246,7 +246,7 @@ impl Precompile for BLS12377G1Add {
 
 		let sum = p0 + p1;
 
-		let output = serialize_g1(sum.into_affine());
+		let output = write_g1(sum.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -281,7 +281,7 @@ impl Precompile for BLS12377G1Mul {
 		let scalar = read_fr(input, 128)?;
 		let q = p.mul(scalar);
 
-		let output = serialize_g1(q.into_affine());
+		let output = write_g1(q.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -345,7 +345,7 @@ impl Precompile for BLS12377G1MultiExp {
 			}
 		})?;
 
-		let output = serialize_g1(r.into_affine());
+		let output = write_g1(r.into_affine());
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
 			output: output.to_vec(),
@@ -380,7 +380,7 @@ impl Precompile for BLS12377G2Add {
 
 		let sum = p0 + p1;
 
-		let output = serialize_g2(sum.into_affine());
+		let output = write_g2(sum.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -415,7 +415,7 @@ impl Precompile for BLS12377G2Mul {
 		let scalar = read_fr(input, 256)?;
 		let q = p.mul(scalar);
 
-		let output = serialize_g2(q.into_affine());
+		let output = write_g2(q.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -479,7 +479,7 @@ impl Precompile for BLS12377G2MultiExp {
 			}
 		})?;
 
-		let output = serialize_g2(r.into_affine());
+		let output = write_g2(r.into_affine());
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
 			output: output.to_vec(),
