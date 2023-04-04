@@ -26,7 +26,7 @@ use fp_evm::{
 };
 use num_bigint::BigUint;
 
-/// Gas discount table for BLS12-377 G1 and G2 multi exponentiation operations
+/// Gas discount table for BLS12-377 G1 and G2 multi exponentiation operations.
 const BLS12377_MULTIEXP_DISCOUNT_TABLE: [u16; 128] = [
 	1200, 888, 764, 641, 594, 547, 500, 453, 438, 423, 408, 394, 379, 364, 349, 334, 330, 326, 322,
 	318, 314, 310, 306, 302, 298, 294, 289, 285, 281, 277, 273, 269, 268, 266, 265, 263, 262, 260,
@@ -37,60 +37,65 @@ const BLS12377_MULTIEXP_DISCOUNT_TABLE: [u16; 128] = [
 	184, 183, 182, 182, 181, 180, 179, 179, 178, 177, 176, 176, 175, 174,
 ];
 
-/// encode Fq in Big-Endian bytes
-fn encode_fq(field: Fq) -> [u8; 48] {
-	let mut result = [0u8; 48];
+/// Encode Fq as `64` bytes by performing Big-Endian encoding of the corresponding (unsigned) integer (top 16 bytes are always zeroes).
+fn encode_fq(field: Fq) -> [u8; 64] {
+	let mut result = [0u8; 64];
 
 	let rep = field.into_bigint();
 
-	result[0..8].copy_from_slice(&rep.0[5].to_be_bytes());
-	result[8..16].copy_from_slice(&rep.0[4].to_be_bytes());
-	result[16..24].copy_from_slice(&rep.0[3].to_be_bytes());
-	result[24..32].copy_from_slice(&rep.0[2].to_be_bytes());
-	result[32..40].copy_from_slice(&rep.0[1].to_be_bytes());
-	result[40..48].copy_from_slice(&rep.0[0].to_be_bytes());
+	result[16..24].copy_from_slice(&rep.0[5].to_be_bytes());
+	result[24..32].copy_from_slice(&rep.0[4].to_be_bytes());
+	result[32..40].copy_from_slice(&rep.0[3].to_be_bytes());
+	result[40..48].copy_from_slice(&rep.0[2].to_be_bytes());
+	result[48..56].copy_from_slice(&rep.0[1].to_be_bytes());
+	result[56..64].copy_from_slice(&rep.0[0].to_be_bytes());
 
 	result
 }
 
+// Encode point G1 as byte concatenation of encodings of the `x` and `y` affine coordinates.
 fn encode_g1(g1: G1Affine) -> [u8; 128] {
 	let mut result = [0u8; 128];
 	if !g1.is_zero() {
 		let x_bytes = encode_fq(g1.x);
-		result[16..64].copy_from_slice(&x_bytes[..]);
+		result[0..64].copy_from_slice(&x_bytes[..]);
 		let y_bytes = encode_fq(g1.y);
-		result[80..128].copy_from_slice(&y_bytes[..]);
+		result[64..128].copy_from_slice(&y_bytes[..]);
 	}
 	result
 }
 
+// Encode point G2 as byte concatenation of encodings of the `x` and `y` affine coordinates.
 fn encode_g2(g2: G2Affine) -> [u8; 256] {
 	let mut result = [0u8; 256];
 	if !g2.is_zero() {
 		let x0_bytes = encode_fq(g2.x.c0);
-		result[16..64].copy_from_slice(&x0_bytes[..]);
+		result[0..64].copy_from_slice(&x0_bytes[..]);
 		let x1_bytes = encode_fq(g2.x.c1);
-		result[80..128].copy_from_slice(&x1_bytes[..]);
+		result[64..128].copy_from_slice(&x1_bytes[..]);
 		let y0_bytes = encode_fq(g2.y.c0);
-		result[144..192].copy_from_slice(&y0_bytes[..]);
+		result[128..192].copy_from_slice(&y0_bytes[..]);
 		let y1_bytes = encode_fq(g2.y.c1);
-		result[208..256].copy_from_slice(&y1_bytes[..]);
+		result[192..256].copy_from_slice(&y1_bytes[..]);
 	}
 	result
 }
 
-/// Copy bytes from input to target.
+/// Copy bytes from source.offset to target.
 fn read_input(source: &[u8], target: &mut [u8], offset: usize) {
 	let len = target.len();
 	target[..len].copy_from_slice(&source[offset..][..len]);
 }
 
+/// Decode Fr expects 32 byte input, returns fr in scalar field.
 fn decode_fr(input: &[u8], offset: usize) -> Fr {
 	let mut bytes = [0u8; 32];
 	read_input(input, &mut bytes, offset);
 	Fr::from_be_bytes_mod_order(&bytes)
 }
 
+/// Decode Fq expects 64 byte input with zero top 16 bytes,
+/// returns Fq in base field.
 fn decode_fq(bytes: [u8; 64]) -> Option<Fq> {
 	// check top bytes
 	for i in 0..16 {
@@ -113,6 +118,7 @@ fn decode_fq(bytes: [u8; 64]) -> Option<Fq> {
 	Fq::from_bigint(tmp)
 }
 
+/// Decode G1 given encoded (x, y) coordinates in 128 bytes returns a valid G1 Point.
 fn decode_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFailure> {
 	let mut px_buf = [0u8; 64];
 	let mut py_buf = [0u8; 64];
@@ -150,8 +156,8 @@ fn decode_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFail
 	}
 }
 
+// Decode G2 given encoded (x, y) coordinates in 256 bytes returns a valid G2 Point.
 fn decode_g2(input: &[u8], start_inx: usize) -> Result<G2Projective, PrecompileFailure> {
-	// TODO: check
 	let mut px0_buf = [0u8; 64];
 	let mut px1_buf = [0u8; 64];
 	let mut py0_buf = [0u8; 64];
@@ -161,28 +167,7 @@ fn decode_g2(input: &[u8], start_inx: usize) -> Result<G2Projective, PrecompileF
 	read_input(input, &mut py0_buf, start_inx + 128);
 	read_input(input, &mut py1_buf, start_inx + 192);
 
-	let px0_bn = BigInt::try_from(BigUint::from_bytes_be(&px0_buf)).map_err(|_| {
-		PrecompileFailure::Error {
-			exit_status: ExitError::Other("Invalid point x0 coordinate".into()),
-		}
-	})?;
-	let px1_bn = BigInt::try_from(BigUint::from_bytes_be(&px1_buf)).map_err(|_| {
-		PrecompileFailure::Error {
-			exit_status: ExitError::Other("Invalid point x1 coordinate".into()),
-		}
-	})?;
-	let py0_bn = BigInt::try_from(BigUint::from_bytes_be(&py0_buf)).map_err(|_| {
-		PrecompileFailure::Error {
-			exit_status: ExitError::Other("Invalid point y1 coordinate".into()),
-		}
-	})?;
-	let py1_bn = BigInt::try_from(BigUint::from_bytes_be(&py1_buf)).map_err(|_| {
-		PrecompileFailure::Error {
-			exit_status: ExitError::Other("Invalid point y1 coordinate".into()),
-		}
-	})?;
-
-	let px0 = match Fq::from_bigint(px0_bn) {
+	let px0 = match decode_fq(px0_buf) {
 		None => {
 			return Err(PrecompileFailure::Error {
 				exit_status: ExitError::Other("Point x0 coordinate is great than MODULUS".into()),
@@ -190,7 +175,7 @@ fn decode_g2(input: &[u8], start_inx: usize) -> Result<G2Projective, PrecompileF
 		}
 		Some(x0) => x0,
 	};
-	let px1 = match Fq::from_bigint(px1_bn) {
+	let px1 = match decode_fq(px1_buf) {
 		None => {
 			return Err(PrecompileFailure::Error {
 				exit_status: ExitError::Other("Point x0 coordinate is great than MODULUS".into()),
@@ -198,7 +183,7 @@ fn decode_g2(input: &[u8], start_inx: usize) -> Result<G2Projective, PrecompileF
 		}
 		Some(x1) => x1,
 	};
-	let py0 = match Fq::from_bigint(py0_bn) {
+	let py0 = match decode_fq(py0_buf) {
 		None => {
 			return Err(PrecompileFailure::Error {
 				exit_status: ExitError::Other("Point y0 coordinate is great than MODULUS".into()),
@@ -206,7 +191,7 @@ fn decode_g2(input: &[u8], start_inx: usize) -> Result<G2Projective, PrecompileF
 		}
 		Some(y0) => y0,
 	};
-	let py1 = match Fq::from_bigint(py1_bn) {
+	let py1 = match decode_fq(py1_buf) {
 		None => {
 			return Err(PrecompileFailure::Error {
 				exit_status: ExitError::Other("Point y1 coordinate is great than MODULUS".into()),
