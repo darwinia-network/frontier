@@ -127,6 +127,7 @@ fn decode_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFail
 	read_input(input, &mut px_buf, offset);
 	read_input(input, &mut py_buf, offset + 64);
 
+	// Decode x
 	let px = match decode_fq(px_buf) {
 		None => {
 			return Err(PrecompileFailure::Error {
@@ -135,6 +136,7 @@ fn decode_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFail
 		}
 		Some(x) => x,
 	};
+	// Decode y
 	let py = match decode_fq(py_buf) {
 		None => {
 			return Err(PrecompileFailure::Error {
@@ -144,13 +146,14 @@ fn decode_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFail
 		Some(y) => y,
 	};
 
+	// Check if given input points to infinity
 	if px.is_zero() && py.is_zero() {
 		Ok(G1Projective::zero())
 	} else {
 		let g1 = G1Affine::new_unchecked(px, py);
 		if !g1.is_on_curve() || !g1.is_in_correct_subgroup_assuming_on_curve() {
 			Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Point is not on curve".into()),
+				exit_status: ExitError::Other("point is not on curve".into()),
 			})
 		} else {
 			Ok(g1.into())
