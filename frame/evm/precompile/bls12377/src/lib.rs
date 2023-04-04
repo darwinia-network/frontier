@@ -37,7 +37,8 @@ const BLS12377_MULTIEXP_DISCOUNT_TABLE: [u16; 128] = [
 	184, 183, 182, 182, 181, 180, 179, 179, 178, 177, 176, 176, 175, 174,
 ];
 
-fn write_fq(field: Fq) -> [u8; 48] {
+/// encode Fq in Big-Endian bytes
+fn encode_fq(field: Fq) -> [u8; 48] {
 	let mut result = [0u8; 48];
 
 	let rep = field.into_bigint();
@@ -52,27 +53,27 @@ fn write_fq(field: Fq) -> [u8; 48] {
 	result
 }
 
-fn write_g1(g1: G1Affine) -> [u8; 128] {
+fn encode_g1(g1: G1Affine) -> [u8; 128] {
 	let mut result = [0u8; 128];
 	if !g1.is_zero() {
-		let x_bytes = write_fq(g1.x);
+		let x_bytes = encode_fq(g1.x);
 		result[16..64].copy_from_slice(&x_bytes[..]);
-		let y_bytes = write_fq(g1.y);
+		let y_bytes = encode_fq(g1.y);
 		result[80..128].copy_from_slice(&y_bytes[..]);
 	}
 	result
 }
 
-fn write_g2(g2: G2Affine) -> [u8; 256] {
+fn encode_g2(g2: G2Affine) -> [u8; 256] {
 	let mut result = [0u8; 256];
 	if !g2.is_zero() {
-		let x0_bytes = write_fq(g2.x.c0);
+		let x0_bytes = encode_fq(g2.x.c0);
 		result[16..64].copy_from_slice(&x0_bytes[..]);
-		let x1_bytes = write_fq(g2.x.c1);
+		let x1_bytes = encode_fq(g2.x.c1);
 		result[80..128].copy_from_slice(&x1_bytes[..]);
-		let y0_bytes = write_fq(g2.y.c0);
+		let y0_bytes = encode_fq(g2.y.c0);
 		result[144..192].copy_from_slice(&y0_bytes[..]);
-		let y1_bytes = write_fq(g2.y.c1);
+		let y1_bytes = encode_fq(g2.y.c1);
 		result[208..256].copy_from_slice(&y1_bytes[..]);
 	}
 	result
@@ -84,13 +85,13 @@ fn read_input(source: &[u8], target: &mut [u8], offset: usize) {
 	target[..len].copy_from_slice(&source[offset..][..len]);
 }
 
-fn read_fr(input: &[u8], offset: usize) -> Fr {
+fn decode_fr(input: &[u8], offset: usize) -> Fr {
 	let mut bytes = [0u8; 32];
 	read_input(input, &mut bytes, offset);
 	Fr::from_be_bytes_mod_order(&bytes)
 }
 
-fn read_fq(bytes: [u8; 64]) -> Option<Fq> {
+fn decode_fq(bytes: [u8; 64]) -> Option<Fq> {
 	// check top bytes
 	for i in 0..16 {
 		if bytes[i] != 0 {
@@ -112,13 +113,13 @@ fn read_fq(bytes: [u8; 64]) -> Option<Fq> {
 	Fq::from_bigint(tmp)
 }
 
-fn read_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFailure> {
+fn decode_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFailure> {
 	let mut px_buf = [0u8; 64];
 	let mut py_buf = [0u8; 64];
 	read_input(input, &mut px_buf, offset);
 	read_input(input, &mut py_buf, offset + 64);
 
-	let px = match read_fq(px_buf) {
+	let px = match decode_fq(px_buf) {
 		None => {
 			return Err(PrecompileFailure::Error {
 				exit_status: ExitError::Other("invliad x coordinate".into()),
@@ -126,7 +127,7 @@ fn read_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFailur
 		}
 		Some(x) => x,
 	};
-	let py = match read_fq(py_buf) {
+	let py = match decode_fq(py_buf) {
 		None => {
 			return Err(PrecompileFailure::Error {
 				exit_status: ExitError::Other("invliad y coordinate".into()),
@@ -149,7 +150,7 @@ fn read_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFailur
 	}
 }
 
-fn read_g2(input: &[u8], start_inx: usize) -> Result<G2Projective, PrecompileFailure> {
+fn decode_g2(input: &[u8], start_inx: usize) -> Result<G2Projective, PrecompileFailure> {
 	// TODO: check
 	let mut px0_buf = [0u8; 64];
 	let mut px1_buf = [0u8; 64];
@@ -252,12 +253,12 @@ impl Precompile for BLS12377G1Add {
 			});
 		}
 
-		let p0 = read_g1(input, 0)?;
-		let p1 = read_g1(input, 128)?;
+		let p0 = decode_g1(input, 0)?;
+		let p1 = decode_g1(input, 128)?;
 
 		let sum = p0 + p1;
 
-		let output = write_g1(sum.into_affine());
+		let output = encode_g1(sum.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -288,11 +289,11 @@ impl Precompile for BLS12377G1Mul {
 			});
 		}
 
-		let p = read_g1(input, 0)?;
-		let scalar = read_fr(input, 128);
+		let p = decode_g1(input, 0)?;
+		let scalar = decode_fr(input, 128);
 		let q = p.mul(scalar);
 
-		let output = write_g1(q.into_affine());
+		let output = encode_g1(q.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -344,8 +345,8 @@ impl Precompile for BLS12377G1MultiExp {
 		let mut scalars = Vec::new();
 		for idx in 0..k {
 			let offset = idx * 160;
-			let p = read_g1(input, offset)?;
-			let scalar = read_fr(input, offset + 128);
+			let p = decode_g1(input, offset)?;
+			let scalar = decode_fr(input, offset + 128);
 			points.push(p.into_affine());
 			scalars.push(scalar);
 		}
@@ -356,7 +357,7 @@ impl Precompile for BLS12377G1MultiExp {
 			}
 		})?;
 
-		let output = write_g1(r.into_affine());
+		let output = encode_g1(r.into_affine());
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
 			output: output.to_vec(),
@@ -386,12 +387,12 @@ impl Precompile for BLS12377G2Add {
 			});
 		}
 
-		let p0 = read_g2(input, 0)?;
-		let p1 = read_g2(input, 256)?;
+		let p0 = decode_g2(input, 0)?;
+		let p1 = decode_g2(input, 256)?;
 
 		let sum = p0 + p1;
 
-		let output = write_g2(sum.into_affine());
+		let output = encode_g2(sum.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -422,11 +423,11 @@ impl Precompile for BLS12377G2Mul {
 			});
 		}
 
-		let p = read_g2(input, 0)?;
-		let scalar = read_fr(input, 256);
+		let p = decode_g2(input, 0)?;
+		let scalar = decode_fr(input, 256);
 		let q = p.mul(scalar);
 
-		let output = write_g2(q.into_affine());
+		let output = encode_g2(q.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -478,8 +479,8 @@ impl Precompile for BLS12377G2MultiExp {
 		let mut scalars = Vec::new();
 		for idx in 0..k {
 			let offset = idx * 288;
-			let p = read_g2(input, offset)?;
-			let scalar = read_fr(input, offset + 256);
+			let p = decode_g2(input, offset)?;
+			let scalar = decode_fr(input, offset + 256);
 			points.push(p.into_affine());
 			scalars.push(scalar);
 		}
@@ -490,7 +491,7 @@ impl Precompile for BLS12377G2MultiExp {
 			}
 		})?;
 
-		let output = write_g2(r.into_affine());
+		let output = encode_g2(r.into_affine());
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
 			output: output.to_vec(),
@@ -532,8 +533,8 @@ impl Precompile for BLS12377Pairing {
 		let mut b = Vec::new();
 		for idx in 0..k {
 			let offset = idx * 384;
-			let g1 = read_g1(input, offset)?;
-			let g2 = read_g2(input, offset + 128)?;
+			let g1 = decode_g1(input, offset)?;
+			let g2 = decode_g2(input, offset + 128)?;
 			a.push(g1);
 			b.push(g2);
 		}
