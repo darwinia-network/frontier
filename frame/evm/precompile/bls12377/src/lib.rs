@@ -17,14 +17,16 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+// Arkworks
 use ark_bls12_377::{Bls12_377, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
-use ark_ff::{BigInt, BigInteger384, PrimeField, Zero};
+use ark_ff::{BigInteger384, PrimeField, Zero};
 use ark_std::ops::Mul;
+
+// Frontier
 use fp_evm::{
 	ExitError, ExitSucceed, Precompile, PrecompileFailure, PrecompileOutput, PrecompileResult,
 };
-use num_bigint::BigUint;
 
 /// Gas discount table for BLS12-377 G1 and G2 multi exponentiation operations.
 const BLS12377_MULTIEXP_DISCOUNT_TABLE: [u16; 128] = [
@@ -238,12 +240,14 @@ impl Precompile for BLS12377G1Add {
 			});
 		}
 
+		// Decode G1 point p_0
 		let p0 = decode_g1(input, 0)?;
+		// Decode G1 point p_1
 		let p1 = decode_g1(input, 128)?;
-
-		let sum = p0 + p1;
-
-		let output = encode_g1(sum.into_affine());
+		// Compute r = p_0 + p_1
+		let r = p0 + p1;
+		// Encode the G1 point into 128 bytes output
+		let output = encode_g1(r.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -274,11 +278,14 @@ impl Precompile for BLS12377G1Mul {
 			});
 		}
 
+		// Decode G1 point
 		let p = decode_g1(input, 0)?;
-		let scalar = decode_fr(input, 128);
-		let q = p.mul(scalar);
-
-		let output = encode_g1(q.into_affine());
+		// Decode scalar value
+		let e = decode_fr(input, 128);
+		// Compute r =  = e * p
+		let r = p.mul(e);
+		// Encode the G1 point into 128 bytes output
+		let output = encode_g1(r.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -295,16 +302,19 @@ impl BLS12377G1MultiExp {
 
 	/// Returns the gas required to execute the pre-compiled contract.
 	fn calculate_gas_cost(input_len: usize) -> u64 {
+		// Calculate G1 point, scalar value pair length
 		let k = input_len / 160;
 		if k == 0 {
 			return 0;
 		}
+		// Lookup discount value for G1 point, scalar value pair length
 		let d_len = BLS12377_MULTIEXP_DISCOUNT_TABLE.len();
 		let discount = if k < d_len {
 			BLS12377_MULTIEXP_DISCOUNT_TABLE[k - 1]
 		} else {
 			BLS12377_MULTIEXP_DISCOUNT_TABLE[d_len - 1]
 		};
+		// Calculate gas and return the result
 		k as u64 * BLS12377G1Mul::GAS_COST * discount as u64 / BLS12377G1MultiExp::MULTIPLIER
 	}
 }
@@ -328,20 +338,25 @@ impl Precompile for BLS12377G1MultiExp {
 
 		let mut points = Vec::new();
 		let mut scalars = Vec::new();
+		// Decode point scalar pairs
 		for idx in 0..k {
 			let offset = idx * 160;
+			// Decode G1 point
 			let p = decode_g1(input, offset)?;
+			// Decode scalar value
 			let scalar = decode_fr(input, offset + 128);
 			points.push(p.into_affine());
 			scalars.push(scalar);
 		}
 
+		// Compute r = e_0 * p_0 + e_1 * p_1 + ... + e_(k-1) * p_(k-1)
 		let r = G1Projective::msm(&points.to_vec(), &scalars.to_vec()).map_err(|_| {
 			PrecompileFailure::Error {
 				exit_status: ExitError::Other("MSM failed".into()),
 			}
 		})?;
 
+		// Encode the G1 point into 128 bytes output
 		let output = encode_g1(r.into_affine());
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -372,12 +387,14 @@ impl Precompile for BLS12377G2Add {
 			});
 		}
 
+		// Decode G2 point p_0
 		let p0 = decode_g2(input, 0)?;
+		// Decode G2 point p_1
 		let p1 = decode_g2(input, 256)?;
-
-		let sum = p0 + p1;
-
-		let output = encode_g2(sum.into_affine());
+		// Compute r = p_0 + p_1
+		let r = p0 + p1;
+		// Encode the G2 point into 256 bytes output
+		let output = encode_g2(r.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -408,11 +425,14 @@ impl Precompile for BLS12377G2Mul {
 			});
 		}
 
+		// Decode G2 point
 		let p = decode_g2(input, 0)?;
-		let scalar = decode_fr(input, 256);
-		let q = p.mul(scalar);
-
-		let output = encode_g2(q.into_affine());
+		// Decode scalar value
+		let e = decode_fr(input, 256);
+		// Compute r = e * p
+		let r = p.mul(e);
+		// Encode the G2 point into 256 bytes output
+		let output = encode_g2(r.into_affine());
 
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -429,16 +449,19 @@ impl BLS12377G2MultiExp {
 
 	/// Returns the gas required to execute the pre-compiled contract.
 	fn calculate_gas_cost(input_len: usize) -> u64 {
+		// Calculate G2 point, scalar value pair length
 		let k = input_len / 288;
 		if k == 0 {
 			return 0;
 		}
+		// Lookup discount value for G2 point, scalar value pair length
 		let d_len = BLS12377_MULTIEXP_DISCOUNT_TABLE.len();
 		let discount = if k < d_len {
 			BLS12377_MULTIEXP_DISCOUNT_TABLE[k - 1]
 		} else {
 			BLS12377_MULTIEXP_DISCOUNT_TABLE[d_len - 1]
 		};
+		// Calculate gas and return the result
 		k as u64 * BLS12377G2Mul::GAS_COST * discount as u64 / BLS12377G2MultiExp::MULTIPLIER
 	}
 }
@@ -462,20 +485,25 @@ impl Precompile for BLS12377G2MultiExp {
 
 		let mut points = Vec::new();
 		let mut scalars = Vec::new();
+		// Decode point scalar pairs
 		for idx in 0..k {
 			let offset = idx * 288;
+			// Decode G2 point
 			let p = decode_g2(input, offset)?;
+			// Decode scalar value
 			let scalar = decode_fr(input, offset + 256);
 			points.push(p.into_affine());
 			scalars.push(scalar);
 		}
 
+		// Compute r = e_0 * p_0 + e_1 * p_1 + ... + e_(k-1) * p_(k-1)
 		let r = G2Projective::msm(&points.to_vec(), &scalars.to_vec()).map_err(|_| {
 			PrecompileFailure::Error {
 				exit_status: ExitError::Other("MSM failed".into()),
 			}
 		})?;
 
+		// Encode the G2 point to 256 bytes output
 		let output = encode_g2(r.into_affine());
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
@@ -516,15 +544,19 @@ impl Precompile for BLS12377Pairing {
 
 		let mut a = Vec::new();
 		let mut b = Vec::new();
+		// Decode G1 G2 pairs
 		for idx in 0..k {
 			let offset = idx * 384;
+			// Decode G1 point
 			let g1 = decode_g1(input, offset)?;
+			// Decode G2 point
 			let g2 = decode_g2(input, offset + 128)?;
 			a.push(g1);
 			b.push(g2);
 		}
 
 		let mut output = [0u8; 32];
+		// Compute pairing and set the output
 		if Bls12_377::multi_pairing(a, b).is_zero() {
 			output[31] = 1;
 		}

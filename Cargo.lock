@@ -4996,7 +4996,6 @@ dependencies = [
  "ark-ff",
  "ark-std",
  "fp-evm",
- "num-bigint",
  "pallet-evm-test-vector-support",
 ]
 
