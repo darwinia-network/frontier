@@ -19,7 +19,7 @@
 
 use ark_bls12_377::{Bls12_377, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
-use ark_ff::{BigInt, PrimeField, Zero};
+use ark_ff::{BigInt, BigInteger384, PrimeField, Zero};
 use ark_std::ops::Mul;
 use fp_evm::{
 	ExitError, ExitSucceed, Precompile, PrecompileFailure, PrecompileOutput, PrecompileResult,
@@ -84,41 +84,52 @@ fn read_input(source: &[u8], target: &mut [u8], offset: usize) {
 	target[..len].copy_from_slice(&source[offset..][..len]);
 }
 
-fn read_fr(input: &[u8], start_inx: usize) -> Result<Fr, PrecompileFailure> {
-	let mut result = [0u8; 32];
-	read_input(input, &mut result, start_inx);
-	Ok(Fr::from_be_bytes_mod_order(&result))
+fn read_fr(input: &[u8], offset: usize) -> Fr {
+	let mut bytes = [0u8; 32];
+	read_input(input, &mut bytes, offset);
+	Fr::from_be_bytes_mod_order(&bytes)
 }
 
-fn read_g1(input: &[u8], start_inx: usize) -> Result<G1Projective, PrecompileFailure> {
+fn read_fq(bytes: [u8; 64]) -> Option<Fq> {
+	// check top bytes
+	for i in 0..16 {
+		if bytes[i] != 0 {
+			return None;
+		}
+	}
+
+	let mut tmp = BigInteger384::new([0, 0, 0, 0, 0, 0]);
+	// Note: The following unwraps are if the compiler cannot convert
+	// the byte slice into [u8;8], we know this is infallible since we
+	// are providing the indices at compile time and bytes has a fixed size
+	tmp.0[5] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[16..24]).unwrap());
+	tmp.0[4] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[24..32]).unwrap());
+	tmp.0[3] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[32..40]).unwrap());
+	tmp.0[2] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[40..48]).unwrap());
+	tmp.0[1] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[48..56]).unwrap());
+	tmp.0[0] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[56..64]).unwrap());
+
+	Fq::from_bigint(tmp)
+}
+
+fn read_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFailure> {
 	let mut px_buf = [0u8; 64];
 	let mut py_buf = [0u8; 64];
-	read_input(input, &mut px_buf, start_inx);
-	read_input(input, &mut py_buf, start_inx + 64);
+	read_input(input, &mut px_buf, offset);
+	read_input(input, &mut py_buf, offset + 64);
 
-	let px_bn = BigInt::try_from(BigUint::from_bytes_be(&px_buf)).map_err(|_| {
-		PrecompileFailure::Error {
-			exit_status: ExitError::Other("Invalid point x coordinate".into()),
-		}
-	})?;
-	let py_bn = BigInt::try_from(BigUint::from_bytes_be(&py_buf)).map_err(|_| {
-		PrecompileFailure::Error {
-			exit_status: ExitError::Other("Invalid point y coordinate".into()),
-		}
-	})?;
-
-	let px = match Fq::from_bigint(px_bn) {
+	let px = match read_fq(px_buf) {
 		None => {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Point x coordinate is great than MODULUS".into()),
+				exit_status: ExitError::Other("invliad x coordinate".into()),
 			})
 		}
 		Some(x) => x,
 	};
-	let py = match Fq::from_bigint(py_bn) {
+	let py = match read_fq(py_buf) {
 		None => {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Point y coordinate is great than MODULUS".into()),
+				exit_status: ExitError::Other("invliad y coordinate".into()),
 			})
 		}
 		Some(y) => y,
@@ -278,7 +289,7 @@ impl Precompile for BLS12377G1Mul {
 		}
 
 		let p = read_g1(input, 0)?;
-		let scalar = read_fr(input, 128)?;
+		let scalar = read_fr(input, 128);
 		let q = p.mul(scalar);
 
 		let output = write_g1(q.into_affine());
@@ -334,16 +345,10 @@ impl Precompile for BLS12377G1MultiExp {
 		for idx in 0..k {
 			let offset = idx * 160;
 			let p = read_g1(input, offset)?;
-			let scalar = read_fr(input, offset + 128)?;
-
-			// println!("{:?}", scalar.into_bigint().to_string());
-
+			let scalar = read_fr(input, offset + 128);
 			points.push(p.into_affine());
 			scalars.push(scalar);
 		}
-
-		// println!("{:?}", points);
-		// println!("{:?}", scalars);
 
 		let r = G1Projective::msm(&points.to_vec(), &scalars.to_vec()).map_err(|_| {
 			PrecompileFailure::Error {
@@ -418,7 +423,7 @@ impl Precompile for BLS12377G2Mul {
 		}
 
 		let p = read_g2(input, 0)?;
-		let scalar = read_fr(input, 256)?;
+		let scalar = read_fr(input, 256);
 		let q = p.mul(scalar);
 
 		let output = write_g2(q.into_affine());
@@ -474,7 +479,7 @@ impl Precompile for BLS12377G2MultiExp {
 		for idx in 0..k {
 			let offset = idx * 288;
 			let p = read_g2(input, offset)?;
-			let scalar = read_fr(input, offset + 256)?;
+			let scalar = read_fr(input, offset + 256);
 			points.push(p.into_affine());
 			scalars.push(scalar);
 		}
