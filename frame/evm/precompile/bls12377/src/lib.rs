@@ -55,7 +55,7 @@ fn encode_fq(field: Fq) -> [u8; 64] {
 	result
 }
 
-// Encode point G1 as byte concatenation of encodings of the `x` and `y` affine coordinates.
+/// Encode point G1 as byte concatenation of encodings of the `x` and `y` affine coordinates.
 fn encode_g1(g1: G1Affine) -> [u8; 128] {
 	let mut result = [0u8; 128];
 	if !g1.is_zero() {
@@ -67,7 +67,7 @@ fn encode_g1(g1: G1Affine) -> [u8; 128] {
 	result
 }
 
-// Encode point G2 as byte concatenation of encodings of the `x` and `y` affine coordinates.
+/// Encode point G2 as byte concatenation of encodings of the `x` and `y` affine coordinates.
 fn encode_g2(g2: G2Affine) -> [u8; 256] {
 	let mut result = [0u8; 256];
 	if !g2.is_zero() {
@@ -120,6 +120,16 @@ fn decode_fq(bytes: [u8; 64]) -> Option<Fq> {
 	Fq::from_bigint(tmp)
 }
 
+fn extract_fq(bytes: [u8; 64]) -> Result<Fq, PrecompileFailure> {
+	let fq = decode_fq(bytes);
+	match fq {
+		None => Err(PrecompileFailure::Error {
+			exit_status: ExitError::Other("invliad coordinate".into()),
+		}),
+		Some(c) => Ok(c),
+	}
+}
+
 /// Decode G1 given encoded (x, y) coordinates in 128 bytes returns a valid G1 Point.
 fn decode_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFailure> {
 	let mut px_buf = [0u8; 64];
@@ -128,23 +138,9 @@ fn decode_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFail
 	read_input(input, &mut py_buf, offset + 64);
 
 	// Decode x
-	let px = match decode_fq(px_buf) {
-		None => {
-			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("invliad x coordinate".into()),
-			})
-		}
-		Some(x) => x,
-	};
+	let px = extract_fq(px_buf)?;
 	// Decode y
-	let py = match decode_fq(py_buf) {
-		None => {
-			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("invliad y coordinate".into()),
-			})
-		}
-		Some(y) => y,
-	};
+	let py = extract_fq(py_buf)?;
 
 	// Check if given input points to infinity
 	if px.is_zero() && py.is_zero() {
@@ -172,38 +168,11 @@ fn decode_g2(input: &[u8], start_inx: usize) -> Result<G2Projective, PrecompileF
 	read_input(input, &mut py0_buf, start_inx + 128);
 	read_input(input, &mut py1_buf, start_inx + 192);
 
-	let px0 = match decode_fq(px0_buf) {
-		None => {
-			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Point x0 coordinate is great than MODULUS".into()),
-			})
-		}
-		Some(x0) => x0,
-	};
-	let px1 = match decode_fq(px1_buf) {
-		None => {
-			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Point x0 coordinate is great than MODULUS".into()),
-			})
-		}
-		Some(x1) => x1,
-	};
-	let py0 = match decode_fq(py0_buf) {
-		None => {
-			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Point y0 coordinate is great than MODULUS".into()),
-			})
-		}
-		Some(y0) => y0,
-	};
-	let py1 = match decode_fq(py1_buf) {
-		None => {
-			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Point y1 coordinate is great than MODULUS".into()),
-			})
-		}
-		Some(y1) => y1,
-	};
+	let px0 = extract_fq(px0_buf)?;
+	let px1 = extract_fq(px1_buf)?;
+	let py0 = extract_fq(py0_buf)?;
+	let py1 = extract_fq(py1_buf)?;
+
 	let px = Fq2::new(px0, px1);
 	let py = Fq2::new(py0, py1);
 
