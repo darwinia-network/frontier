@@ -42,7 +42,6 @@ const BLS12377_MULTIEXP_DISCOUNT_TABLE: [u16; 128] = [
 /// Encode Fq as `64` bytes by performing Big-Endian encoding of the corresponding (unsigned) integer (top 16 bytes are always zeroes).
 fn encode_fq(field: Fq) -> [u8; 64] {
 	let mut result = [0u8; 64];
-
 	let rep = field.into_bigint();
 
 	result[16..24].copy_from_slice(&rep.0[5].to_be_bytes());
