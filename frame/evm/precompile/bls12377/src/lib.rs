@@ -147,7 +147,7 @@ fn decode_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFail
 		Ok(G1Projective::zero())
 	} else {
 		let g1 = G1Affine::new_unchecked(px, py);
-		if !g1.is_on_curve() || !g1.is_in_correct_subgroup_assuming_on_curve() {
+		if !g1.is_on_curve() {
 			Err(PrecompileFailure::Error {
 				exit_status: ExitError::Other("point is not on curve".into()),
 			})
@@ -180,7 +180,7 @@ fn decode_g2(input: &[u8], start_inx: usize) -> Result<G2Projective, PrecompileF
 		Ok(G2Projective::zero())
 	} else {
 		let g2 = G2Affine::new_unchecked(px, py);
-		if !g2.is_on_curve() || !g2.is_in_correct_subgroup_assuming_on_curve() {
+		if !g2.is_on_curve() {
 			Err(PrecompileFailure::Error {
 				exit_status: ExitError::Other("Point is not on curve".into()),
 			})
@@ -523,6 +523,20 @@ impl Precompile for BLS12377Pairing {
 			let g1 = decode_g1(input, offset)?;
 			// Decode G2 point
 			let g2 = decode_g2(input, offset + 128)?;
+
+			// 'point is on curve' check already done,
+			// Here we need to apply subgroup checks.
+			if !g1.into_affine().is_in_correct_subgroup_assuming_on_curve() {
+				return Err(PrecompileFailure::Error {
+					exit_status: ExitError::Other("g1 point is not on correct subgroup".into()),
+				});
+			}
+			if !g2.into_affine().is_in_correct_subgroup_assuming_on_curve() {
+				return Err(PrecompileFailure::Error {
+					exit_status: ExitError::Other("g2 point is not on correct subgroup".into()),
+				});
+			}
+
 			a.push(g1);
 			b.push(g2);
 		}
