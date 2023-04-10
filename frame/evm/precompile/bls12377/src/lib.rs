@@ -256,7 +256,7 @@ impl Precompile for BLS12377G1Mul {
 		let p = decode_g1(input, 0)?;
 		// Decode scalar value
 		let e = decode_fr(input, 128);
-		// Compute r =  = e * p
+		// Compute r = e * p
 		let r = p.mul(e);
 		// Encode the G1 point into 128 bytes output
 		let output = encode_g1(r.into_affine());
