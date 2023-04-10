@@ -184,7 +184,7 @@ fn decode_g2(input: &[u8], start_inx: usize) -> Result<G2Projective, PrecompileF
 		let g2 = G2Affine::new_unchecked(px, py);
 		if !g2.is_on_curve() {
 			Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Point is not on curve".into()),
+				exit_status: ExitError::Other("point is not on curve".into()),
 			})
 		} else {
 			Ok(g2.into())
@@ -210,7 +210,7 @@ impl Precompile for BLS12377G1Add {
 		let input = handle.input();
 		if input.len() != 256 {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Input must contain 256 bytes".into()),
+				exit_status: ExitError::Other("input must contain 256 bytes".into()),
 			});
 		}
 
@@ -248,7 +248,7 @@ impl Precompile for BLS12377G1Mul {
 		let input = handle.input();
 		if input.len() != 160 {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Input must contain 160 bytes".into()),
+				exit_status: ExitError::Other("input must contain 160 bytes".into()),
 			});
 		}
 
@@ -304,7 +304,7 @@ impl Precompile for BLS12377G1MultiExp {
 		let k = handle.input().len() / 160;
 		if handle.input().is_empty() || handle.input().len() % 160 != 0 {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Input input length".into()),
+				exit_status: ExitError::Other("invalid input length".into()),
 			});
 		}
 
@@ -357,7 +357,7 @@ impl Precompile for BLS12377G2Add {
 		let input = handle.input();
 		if input.len() != 512 {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Input must contain 512 bytes".into()),
+				exit_status: ExitError::Other("input must contain 512 bytes".into()),
 			});
 		}
 
@@ -395,7 +395,7 @@ impl Precompile for BLS12377G2Mul {
 		let input = handle.input();
 		if input.len() != 288 {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Input must contain 288 bytes".into()),
+				exit_status: ExitError::Other("input must contain 288 bytes".into()),
 			});
 		}
 
@@ -451,7 +451,7 @@ impl Precompile for BLS12377G2MultiExp {
 		let k = handle.input().len() / 288;
 		if handle.input().is_empty() || handle.input().len() % 288 != 0 {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Input input length".into()),
+				exit_status: ExitError::Other("invalid input length".into()),
 			});
 		}
 
@@ -505,7 +505,7 @@ impl Precompile for BLS12377Pairing {
 	fn execute(handle: &mut impl fp_evm::PrecompileHandle) -> PrecompileResult {
 		if handle.input().is_empty() || handle.input().len() % 384 != 0 {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("Input input length".into()),
+				exit_status: ExitError::Other("invalid input length".into()),
 			});
 		}
 
