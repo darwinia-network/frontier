@@ -283,7 +283,7 @@ impl BLS12377G1MultiExp {
 		}
 		// Lookup discount value for G1 point, scalar value pair length
 		let d_len = BLS12377_MULTIEXP_DISCOUNT_TABLE.len();
-		let discount = if k < d_len {
+		let discount = if k <= d_len {
 			BLS12377_MULTIEXP_DISCOUNT_TABLE[k - 1]
 		} else {
 			BLS12377_MULTIEXP_DISCOUNT_TABLE[d_len - 1]
@@ -430,7 +430,7 @@ impl BLS12377G2MultiExp {
 		}
 		// Lookup discount value for G2 point, scalar value pair length
 		let d_len = BLS12377_MULTIEXP_DISCOUNT_TABLE.len();
-		let discount = if k < d_len {
+		let discount = if k <= d_len {
 			BLS12377_MULTIEXP_DISCOUNT_TABLE[k - 1]
 		} else {
 			BLS12377_MULTIEXP_DISCOUNT_TABLE[d_len - 1]
