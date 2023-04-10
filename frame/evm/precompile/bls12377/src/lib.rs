@@ -126,7 +126,7 @@ fn extract_fq(bytes: [u8; 64]) -> Result<Fq, PrecompileFailure> {
 	let fq = decode_fq(bytes);
 	match fq {
 		None => Err(PrecompileFailure::Error {
-			exit_status: ExitError::Other("invliad coordinate".into()),
+			exit_status: ExitError::Other("invliad Fq".into()),
 		}),
 		Some(c) => Ok(c),
 	}
