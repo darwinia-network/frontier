@@ -470,3 +470,73 @@ impl Precompile for Bw6761G2MultiExp {
 		})
 	}
 }
+
+/// Bw6761Pairing implements EIP-3026 Pairing precompile.
+pub struct Bw6761Pairing;
+
+impl Bw6761Pairing {
+	// TODO::to be estimated
+	const BASE_GAS: u64 = 0;
+	const PER_PAIR_GAS: u64 = 0;
+}
+
+impl Precompile for Bw6761Pairing {
+	/// Implements EIP-3026 Pairing precompile logic.
+	/// > Pairing call expects `384*k` bytes as an inputs that is interpreted as byte concatenation of `k` slices. Each slice has the following structure:
+	/// > - `192` bytes of G1 point encoding
+	/// > - `192` bytes of G2 point encoding
+	/// > Output is a `32` bytes where last single byte is `0x01` if pairing result is equal to multiplicative identity in a pairing target field and `0x00` otherwise
+	/// > (which is equivalent of Big Endian encoding of Solidity values `uint256(1)` and `uin256(0)` respectively).
+	fn execute(handle: &mut impl PrecompileHandle) -> PrecompileResult {
+		if handle.input().is_empty() || handle.input().len() % 384 != 0 {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("invalid input length".into()),
+			});
+		}
+
+		let k = handle.input().len() / 384;
+		let gas_cost: u64 = Bw6761Pairing::BASE_GAS + (k as u64 * Bw6761Pairing::PER_PAIR_GAS);
+
+		handle.record_cost(gas_cost)?;
+
+		let input = handle.input();
+
+		let mut a = Vec::new();
+		let mut b = Vec::new();
+		// Decode G1 G2 pairs
+		for idx in 0..k {
+			let offset = idx * 384;
+			// Decode G1 point
+			let g1 = decode_g1(input, offset)?;
+			// Decode G2 point
+			let g2 = decode_g2(input, offset + 192)?;
+
+			// 'point is on curve' check already done,
+			// Here we need to apply subgroup checks.
+			if !g1.into_affine().is_in_correct_subgroup_assuming_on_curve() {
+				return Err(PrecompileFailure::Error {
+					exit_status: ExitError::Other("g1 point is not on correct subgroup".into()),
+				});
+			}
+			if !g2.into_affine().is_in_correct_subgroup_assuming_on_curve() {
+				return Err(PrecompileFailure::Error {
+					exit_status: ExitError::Other("g2 point is not on correct subgroup".into()),
+				});
+			}
+
+			a.push(g1);
+			b.push(g2);
+		}
+
+		let mut output = [0u8; 32];
+		// Compute pairing and set the output
+		if BW6_761::multi_pairing(a, b).is_zero() {
+			output[31] = 1;
+		}
+
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Returned,
+			output: output.to_vec(),
+		})
+	}
+}
