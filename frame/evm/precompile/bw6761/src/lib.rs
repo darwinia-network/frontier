@@ -63,6 +63,18 @@ fn encode_g1(g1: G1Affine) -> [u8; 192] {
 	result
 }
 
+/// Encode point G2 as byte concatenation of encodings of the `x` and `y` affine coordinates.
+fn encode_g2(g2: G2Affine) -> [u8; 192] {
+	let mut result = [0u8; 192];
+	if !g2.is_zero() {
+		let x_bytes = encode_fq(g2.x);
+		result[0..96].copy_from_slice(&x_bytes[..]);
+		let y_bytes = encode_fq(g2.y);
+		result[96..192].copy_from_slice(&y_bytes[..]);
+	}
+	result
+}
+
 /// Copy bytes from source.offset to target.
 fn read_input(source: &[u8], target: &mut [u8], offset: usize) {
 	let len = target.len();
@@ -109,7 +121,7 @@ fn extract_fq(bytes: [u8; 96]) -> Result<Fq, PrecompileFailure> {
 	}
 }
 
-/// Decode G1 given encoded (x, y) coordinates in 128 bytes returns a valid G1 Point.
+/// Decode G1 given encoded (x, y) coordinates in 192 bytes returns a valid G1 Point.
 fn decode_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFailure> {
 	let mut px_buf = [0u8; 96];
 	let mut py_buf = [0u8; 96];
@@ -132,6 +144,33 @@ fn decode_g1(input: &[u8], offset: usize) -> Result<G1Projective, PrecompileFail
 			})
 		} else {
 			Ok(g1.into())
+		}
+	}
+}
+
+// Decode G2 given encoded (x, y) coordinates in 192 bytes returns a valid G2 Point.
+fn decode_g2(input: &[u8], offset: usize) -> Result<G2Projective, PrecompileFailure> {
+	let mut px_buf = [0u8; 96];
+	let mut py_buf = [0u8; 96];
+	read_input(input, &mut px_buf, offset);
+	read_input(input, &mut py_buf, offset + 96);
+
+	// Decode x
+	let px = extract_fq(px_buf)?;
+	// Decode y
+	let py = extract_fq(py_buf)?;
+
+	// Check if given input points to infinity
+	if px.is_zero() && py.is_zero() {
+		Ok(G2Projective::zero())
+	} else {
+		let g2 = G2Affine::new_unchecked(px, py);
+		if !g2.is_on_curve() {
+			Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("point is not on curve".into()),
+			})
+		} else {
+			Ok(g2.into())
 		}
 	}
 }
@@ -277,6 +316,44 @@ impl Precompile for Bw6761G1MultiExp {
 
 		// Encode the G1 point into 128 bytes output
 		let output = encode_g1(r.into_affine());
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Returned,
+			output: output.to_vec(),
+		})
+	}
+}
+
+/// Bw6761G2Add implements EIP-3026 G2Add precompile.
+pub struct Bw6761G2Add;
+
+impl Bw6761G2Add {
+	// TODO::to be estimated
+	const GAS_COST: u64 = 0;
+}
+
+impl Precompile for Bw6761G2Add {
+	/// Implements EIP-3026 G2Add precompile.
+	/// > G2 addition call expects `384` bytes as an input that is interpreted as byte concatenation of two G2 points (`192` bytes each).
+	/// > Output is an encoding of addition operation result - single G2 point (`192` bytes).
+	fn execute(handle: &mut impl PrecompileHandle) -> PrecompileResult {
+		handle.record_cost(Bw6761G2Add::GAS_COST)?;
+
+		let input = handle.input();
+		if input.len() != 384 {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("invalid input length".into()),
+			});
+		}
+
+		// Decode G2 point p_0
+		let p0 = decode_g2(input, 0)?;
+		// Decode G2 point p_1
+		let p1 = decode_g2(input, 192)?;
+		// Compute r = p_0 + p_1
+		let r = p0 + p1;
+		// Encode the G2 point into 256 bytes output
+		let output = encode_g2(r.into_affine());
+
 		Ok(PrecompileOutput {
 			exit_status: ExitSucceed::Returned,
 			output: output.to_vec(),
