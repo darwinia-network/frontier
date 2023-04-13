@@ -360,3 +360,113 @@ impl Precompile for Bw6761G2Add {
 		})
 	}
 }
+
+/// Bw6761G2Mul implements EIP-3026 G2Mul precompile.
+pub struct Bw6761G2Mul;
+
+impl Bw6761G2Mul {
+	// TODO::to be estimated
+	const GAS_COST: u64 = 0;
+}
+
+impl Precompile for Bw6761G2Mul {
+	/// Implements EIP-3026 G2MUL precompile logic.
+	/// > G2 multiplication call expects `256` bytes as an input that is interpreted as byte concatenation of encoding of G2 point (`192` bytes) and encoding of a scalar value (`64` bytes).
+	/// > Output is an encoding of multiplication operation result - single G2 point (`192` bytes).
+	fn execute(handle: &mut impl PrecompileHandle) -> PrecompileResult {
+		handle.record_cost(Bw6761G2Mul::GAS_COST)?;
+
+		let input = handle.input();
+		if input.len() != 256 {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("invalid input length".into()),
+			});
+		}
+
+		// Decode G2 point
+		let p = decode_g2(input, 0)?;
+		// Decode scalar value
+		let e = decode_fr(input, 192);
+		// Compute r = e * p
+		let r = p.mul(e);
+		// Encode the G2 point into 256 bytes output
+		let output = encode_g2(r.into_affine());
+
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Returned,
+			output: output.to_vec(),
+		})
+	}
+}
+
+// Bw6761G2MultiExp implements EIP-3026 G2MultiExp precompile.
+pub struct Bw6761G2MultiExp;
+
+impl Bw6761G2MultiExp {
+	// TODO::to be estimated
+	const MULTIPLIER: u64 = 1_000;
+
+	/// Returns the gas required to execute the pre-compiled contract.
+	fn calculate_gas_cost(input_len: usize) -> u64 {
+		// Calculate G2 point, scalar value pair length
+		let k = input_len / 256;
+		if k == 0 {
+			return 0;
+		}
+		// Lookup discount value for G2 point, scalar value pair length
+		let d_len = BW6761_MULTIEXP_DISCOUNT_TABLE.len();
+		let discount = if k <= d_len {
+			BW6761_MULTIEXP_DISCOUNT_TABLE[k - 1]
+		} else {
+			BW6761_MULTIEXP_DISCOUNT_TABLE[d_len - 1]
+		};
+		// Calculate gas and return the result
+		k as u64 * Bw6761G2Mul::GAS_COST * discount as u64 / Bw6761G2MultiExp::MULTIPLIER
+	}
+}
+
+impl Precompile for Bw6761G2MultiExp {
+	/// Implements EIP-3026 G2MultiExp precompile logic
+	/// > G2 multiplication call expects `256*k` bytes as an input that is interpreted as byte concatenation of `k` slices each of them being a byte concatenation of encoding of G2 point (`256` bytes) and encoding of a scalar value (`64` bytes).
+	/// > Output is an encoding of multiexponentiation operation result - single G2 point (`192` bytes).
+	fn execute(handle: &mut impl PrecompileHandle) -> PrecompileResult {
+		let gas_cost = Bw6761G2MultiExp::calculate_gas_cost(handle.input().len());
+		handle.record_cost(gas_cost)?;
+
+		let k = handle.input().len() / 256;
+		if handle.input().is_empty() || handle.input().len() % 256 != 0 {
+			return Err(PrecompileFailure::Error {
+				exit_status: ExitError::Other("invalid input length".into()),
+			});
+		}
+
+		let input = handle.input();
+
+		let mut points = Vec::new();
+		let mut scalars = Vec::new();
+		// Decode point scalar pairs
+		for idx in 0..k {
+			let offset = idx * 256;
+			// Decode G2 point
+			let p = decode_g2(input, offset)?;
+			// Decode scalar value
+			let scalar = decode_fr(input, offset + 192);
+			points.push(p.into_affine());
+			scalars.push(scalar);
+		}
+
+		// Compute r = e_0 * p_0 + e_1 * p_1 + ... + e_(k-1) * p_(k-1)
+		let r = G2Projective::msm(&points.to_vec(), &scalars.to_vec()).map_err(|_| {
+			PrecompileFailure::Error {
+				exit_status: ExitError::Other("MSM failed".into()),
+			}
+		})?;
+
+		// Encode the G2 point to 256 bytes output
+		let output = encode_g2(r.into_affine());
+		Ok(PrecompileOutput {
+			exit_status: ExitSucceed::Returned,
+			output: output.to_vec(),
+		})
+	}
+}
