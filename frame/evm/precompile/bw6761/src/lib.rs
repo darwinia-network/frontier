@@ -17,6 +17,9 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(test)]
+mod tests;
+
 use ark_bw6_761::{Fq, Fr, G1Affine, G1Projective, G2Affine, G2Projective, BW6_761};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInteger768, PrimeField, Zero};
@@ -95,18 +98,18 @@ fn decode_fq(bytes: [u8; 96]) -> Option<Fq> {
 	// Note: The following unwraps are if the compiler cannot convert
 	// the byte slice into [u8;8], we know this is infallible since we
 	// are providing the indices at compile time and bytes has a fixed size
-	tmp.0[11] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[88..96]).unwrap());
-	tmp.0[10] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[80..88]).unwrap());
-	tmp.0[9] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[72..80]).unwrap());
-	tmp.0[8] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[64..72]).unwrap());
-	tmp.0[7] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[56..64]).unwrap());
-	tmp.0[6] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[48..56]).unwrap());
-	tmp.0[5] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[40..48]).unwrap());
-	tmp.0[4] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[32..40]).unwrap());
-	tmp.0[3] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[24..32]).unwrap());
-	tmp.0[2] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[16..24]).unwrap());
-	tmp.0[1] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[8..16]).unwrap());
-	tmp.0[0] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[0..8]).unwrap());
+	tmp.0[11] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[0..8]).unwrap());
+	tmp.0[10] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[8..16]).unwrap());
+	tmp.0[9] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[16..24]).unwrap());
+	tmp.0[8] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[24..32]).unwrap());
+	tmp.0[7] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[32..40]).unwrap());
+	tmp.0[6] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[40..48]).unwrap());
+	tmp.0[5] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[48..56]).unwrap());
+	tmp.0[4] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[56..64]).unwrap());
+	tmp.0[3] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[64..72]).unwrap());
+	tmp.0[2] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[72..80]).unwrap());
+	tmp.0[1] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[80..88]).unwrap());
+	tmp.0[0] = u64::from_be_bytes(<[u8; 8]>::try_from(&bytes[88..96]).unwrap());
 
 	Fq::from_bigint(tmp)
 }
