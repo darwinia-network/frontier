@@ -16,46 +16,34 @@
 // limitations under the License.
 
 use super::*;
-use pallet_evm_test_vector_support::test_precompile_test_vectors;
+use pallet_evm_test_vector_support::{
+	test_precompile_failure_test_vectors, test_precompile_test_vectors,
+};
 
 #[test]
-fn process_consensus_tests_for_add_g1() -> Result<(), String> {
+fn process_consensus_tests() -> Result<(), String> {
 	test_precompile_test_vectors::<Bw6761G1Add>("../testdata/bw6761G1Add.json")?;
-	Ok(())
-}
-
-#[test]
-fn process_consensus_tests_for_mul_g1() -> Result<(), String> {
 	test_precompile_test_vectors::<Bw6761G1Mul>("../testdata/bw6761G1Mul.json")?;
-	Ok(())
-}
-
-#[test]
-fn process_consensus_tests_for_multiexp_g1() -> Result<(), String> {
 	test_precompile_test_vectors::<Bw6761G1MultiExp>("../testdata/bw6761G1MultiExp.json")?;
-	Ok(())
-}
-
-#[test]
-fn process_consensus_tests_for_add_g2() -> Result<(), String> {
 	test_precompile_test_vectors::<Bw6761G2Add>("../testdata/bw6761G2Add.json")?;
-	Ok(())
-}
-
-#[test]
-fn process_consensus_tests_for_mul_g2() -> Result<(), String> {
 	test_precompile_test_vectors::<Bw6761G2Mul>("../testdata/bw6761G2Mul.json")?;
-	Ok(())
-}
-
-#[test]
-fn process_consensus_tests_for_multiexp_g2() -> Result<(), String> {
 	test_precompile_test_vectors::<Bw6761G2MultiExp>("../testdata/bw6761G2MultiExp.json")?;
+	test_precompile_test_vectors::<Bw6761Pairing>("../testdata/bw6761Pairing.json")?;
 	Ok(())
 }
 
 #[test]
-fn process_consensus_tests_for_pairing() -> Result<(), String> {
-	test_precompile_test_vectors::<Bw6761Pairing>("../testdata/bw6761Pairing.json")?;
+fn process_consensus_failure_tests() -> Result<(), String> {
+	test_precompile_failure_test_vectors::<Bw6761G1Add>("../testdata/fail-bw6761G1Add.json")?;
+	test_precompile_failure_test_vectors::<Bw6761G1Mul>("../testdata/fail-bw6761G1Mul.json")?;
+	test_precompile_failure_test_vectors::<Bw6761G1MultiExp>(
+		"../testdata/fail-bw6761G1MultiExp.json",
+	)?;
+	test_precompile_failure_test_vectors::<Bw6761G2Add>("../testdata/fail-bw6761G2Add.json")?;
+	test_precompile_failure_test_vectors::<Bw6761G2Mul>("../testdata/fail-bw6761G2Mul.json")?;
+	test_precompile_failure_test_vectors::<Bw6761G2MultiExp>(
+		"../testdata/fail-bw6761G2MultiExp.json",
+	)?;
+	test_precompile_failure_test_vectors::<Bw6761Pairing>("../testdata/fail-bw6761Pairing.json")?;
 	Ok(())
 }

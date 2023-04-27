@@ -118,7 +118,7 @@ fn extract_fq(bytes: [u8; 96]) -> Result<Fq, PrecompileFailure> {
 	let fq = decode_fq(bytes);
 	match fq {
 		None => Err(PrecompileFailure::Error {
-			exit_status: ExitError::Other("invliad Fq".into()),
+			exit_status: ExitError::Other("invalid Fq".into()),
 		}),
 		Some(c) => Ok(c),
 	}
