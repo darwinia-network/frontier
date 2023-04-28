@@ -18,7 +18,7 @@
 use std::fs;
 
 use evm::{Context, ExitError, ExitReason, ExitSucceed, Transfer};
-use fp_evm::{Precompile, PrecompileHandle};
+use fp_evm::{Precompile, PrecompileFailure, PrecompileHandle};
 use sp_core::{H160, H256};
 
 #[derive(Debug, serde::Deserialize)]
@@ -26,8 +26,16 @@ use sp_core::{H160, H256};
 struct EthConsensusTest {
 	input: String,
 	expected: String,
-	name: Option<String>,
+	name: String,
 	gas: Option<u64>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct EthConsensusFailureTest {
+	input: String,
+	expected_error: String,
+	name: String,
 }
 
 pub struct MockHandle {
@@ -123,45 +131,67 @@ pub fn test_precompile_test_vectors<P: Precompile>(filepath: &str) -> Result<(),
 		match P::execute(&mut handle) {
 			Ok(result) => {
 				let as_hex: String = hex::encode(result.output);
-				match test.name {
-					Some(name) => {
-						assert_eq!(
-							result.exit_status,
-							ExitSucceed::Returned,
-							"test '{}' returned {:?} (expected 'Returned')",
-							name,
-							result.exit_status
-						);
-						assert_eq!(
-							as_hex, test.expected,
-							"test '{}' failed (different output)",
-							name
-						);
-						if let Some(expected_gas) = test.gas {
-							assert_eq!(
-								handle.gas_used, expected_gas,
-								"test '{}' failed (different gas cost)",
-								name
-							);
-						}
-					}
-					None => {
-						assert_eq!(
-							result.exit_status,
-							ExitSucceed::Returned,
-							"returned {:?} (expected 'Returned')",
-							result.exit_status
-						);
-						assert_eq!(as_hex, test.expected, "failed (different output)");
-					}
+				assert_eq!(
+					result.exit_status,
+					ExitSucceed::Returned,
+					"test '{}' returned {:?} (expected 'Returned')",
+					test.name,
+					result.exit_status
+				);
+				assert_eq!(
+					as_hex, test.expected,
+					"test '{}' failed (different output)",
+					test.name
+				);
+				if let Some(expected_gas) = test.gas {
+					assert_eq!(
+						handle.gas_used, expected_gas,
+						"test '{}' failed (different gas cost)",
+						test.name
+					);
 				}
 			}
 			Err(err) => {
-				if let Some(name) = test.name {
-					return Err(format!("Test '{}' returned error: {:?}", name, err));
-				} else {
-					return Err(format!("returned error: {:?}", err));
-				}
+				return Err(format!("Test '{}' returned error: {:?}", test.name, err));
+			}
+		}
+	}
+
+	Ok(())
+}
+
+pub fn test_precompile_failure_test_vectors<P: Precompile>(filepath: &str) -> Result<(), String> {
+	let data = fs::read_to_string(filepath).expect("Failed to read json file");
+
+	let tests: Vec<EthConsensusFailureTest> =
+		serde_json::from_str(&data).expect("expected json array");
+
+	for test in tests {
+		let input: Vec<u8> = hex::decode(test.input).expect("Could not hex-decode test input data");
+
+		let cost: u64 = 10000000;
+
+		let context: Context = Context {
+			address: Default::default(),
+			caller: Default::default(),
+			apparent_value: From::from(0),
+		};
+
+		let mut handle = MockHandle::new(input, Some(cost), context);
+
+		match P::execute(&mut handle) {
+			Ok(..) => {
+				unreachable!("Test should be failed");
+			}
+			Err(err) => {
+				let expected_err = PrecompileFailure::Error {
+					exit_status: ExitError::Other(test.expected_error.into()),
+				};
+				assert_eq!(
+					expected_err, err,
+					"Test '{}' failed (different error)",
+					test.name
+				);
 			}
 		}
 	}

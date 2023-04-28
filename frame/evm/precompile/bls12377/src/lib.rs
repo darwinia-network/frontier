@@ -127,7 +127,7 @@ fn extract_fq(bytes: [u8; 64]) -> Result<Fq, PrecompileFailure> {
 	let fq = decode_fq(bytes);
 	match fq {
 		None => Err(PrecompileFailure::Error {
-			exit_status: ExitError::Other("invliad Fq".into()),
+			exit_status: ExitError::Other("invalid Fq".into()),
 		}),
 		Some(c) => Ok(c),
 	}
@@ -211,7 +211,7 @@ impl Precompile for Bls12377G1Add {
 		let input = handle.input();
 		if input.len() != 256 {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("input must contain 256 bytes".into()),
+				exit_status: ExitError::Other("invalid input length".into()),
 			});
 		}
 
@@ -249,7 +249,7 @@ impl Precompile for Bls12377G1Mul {
 		let input = handle.input();
 		if input.len() != 160 {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("input must contain 160 bytes".into()),
+				exit_status: ExitError::Other("invalid input length".into()),
 			});
 		}
 
@@ -358,7 +358,7 @@ impl Precompile for Bls12377G2Add {
 		let input = handle.input();
 		if input.len() != 512 {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("input must contain 512 bytes".into()),
+				exit_status: ExitError::Other("invalid input length".into()),
 			});
 		}
 
@@ -396,7 +396,7 @@ impl Precompile for Bls12377G2Mul {
 		let input = handle.input();
 		if input.len() != 288 {
 			return Err(PrecompileFailure::Error {
-				exit_status: ExitError::Other("input must contain 288 bytes".into()),
+				exit_status: ExitError::Other("invalid input length".into()),
 			});
 		}
 
