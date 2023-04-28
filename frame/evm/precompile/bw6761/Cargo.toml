@@ -24,6 +24,9 @@ default = ["std"]
 std = [
 	# Arkworks
 	"ark-bw6-761/std",
+	"ark-ec/std",
+	"ark-ff/std",
+	"ark-std/std",
 
 	# Frontier
 	"fp-evm/std"
