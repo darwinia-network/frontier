@@ -30,23 +30,24 @@ use fp_evm::{
 /// Gas discount table for BW6-761 G1 and G2 multi exponentiation operations.
 // TODO::to be estimated
 const BW6761_MULTIEXP_DISCOUNT_TABLE: [u16; 128] = [0u16; 128];
-/// Encode Fq as `96` bytes by performing Big-Endian encoding of the corresponding (unsigned) integer (top 16 bytes are always zeroes).
+
+/// Encode Fq as `96` bytes by performing Big-Endian encoding of the corresponding (unsigned) integer.
 fn encode_fq(field: Fq) -> [u8; 96] {
 	let mut result = [0u8; 96];
-	let rep = field.into_bigint();
+	let rep = field.into_bigint().0;
 
-	result[0..8].copy_from_slice(&rep.0[11].to_be_bytes());
-	result[8..16].copy_from_slice(&rep.0[10].to_be_bytes());
-	result[16..24].copy_from_slice(&rep.0[9].to_be_bytes());
-	result[24..32].copy_from_slice(&rep.0[8].to_be_bytes());
-	result[32..40].copy_from_slice(&rep.0[7].to_be_bytes());
-	result[40..48].copy_from_slice(&rep.0[6].to_be_bytes());
-	result[48..56].copy_from_slice(&rep.0[5].to_be_bytes());
-	result[56..64].copy_from_slice(&rep.0[4].to_be_bytes());
-	result[64..72].copy_from_slice(&rep.0[3].to_be_bytes());
-	result[72..80].copy_from_slice(&rep.0[2].to_be_bytes());
-	result[80..88].copy_from_slice(&rep.0[1].to_be_bytes());
-	result[88..96].copy_from_slice(&rep.0[0].to_be_bytes());
+	result[0..8].copy_from_slice(&rep[11].to_be_bytes());
+	result[8..16].copy_from_slice(&rep[10].to_be_bytes());
+	result[16..24].copy_from_slice(&rep[9].to_be_bytes());
+	result[24..32].copy_from_slice(&rep[8].to_be_bytes());
+	result[32..40].copy_from_slice(&rep[7].to_be_bytes());
+	result[40..48].copy_from_slice(&rep[6].to_be_bytes());
+	result[48..56].copy_from_slice(&rep[5].to_be_bytes());
+	result[56..64].copy_from_slice(&rep[4].to_be_bytes());
+	result[64..72].copy_from_slice(&rep[3].to_be_bytes());
+	result[72..80].copy_from_slice(&rep[2].to_be_bytes());
+	result[80..88].copy_from_slice(&rep[1].to_be_bytes());
+	result[88..96].copy_from_slice(&rep[0].to_be_bytes());
 
 	result
 }
@@ -55,10 +56,8 @@ fn encode_fq(field: Fq) -> [u8; 96] {
 fn encode_g1(g1: G1Affine) -> [u8; 192] {
 	let mut result = [0u8; 192];
 	if !g1.is_zero() {
-		let x_bytes = encode_fq(g1.x);
-		result[0..96].copy_from_slice(&x_bytes[..]);
-		let y_bytes = encode_fq(g1.y);
-		result[96..192].copy_from_slice(&y_bytes[..]);
+		result[0..96].copy_from_slice(&encode_fq(g1.x));
+		result[96..192].copy_from_slice(&encode_fq(g1.y));
 	}
 	result
 }
@@ -67,10 +66,8 @@ fn encode_g1(g1: G1Affine) -> [u8; 192] {
 fn encode_g2(g2: G2Affine) -> [u8; 192] {
 	let mut result = [0u8; 192];
 	if !g2.is_zero() {
-		let x_bytes = encode_fq(g2.x);
-		result[0..96].copy_from_slice(&x_bytes[..]);
-		let y_bytes = encode_fq(g2.y);
-		result[96..192].copy_from_slice(&y_bytes[..]);
+		result[0..96].copy_from_slice(&encode_fq(g2.x));
+		result[96..192].copy_from_slice(&encode_fq(g2.y));
 	}
 	result
 }
