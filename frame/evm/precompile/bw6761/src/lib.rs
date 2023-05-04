@@ -17,9 +17,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(test)]
-mod tests;
-
 use ark_bw6_761::{Fq, Fr, G1Affine, G1Projective, G2Affine, G2Projective, BW6_761};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInteger768, PrimeField, Zero};
@@ -543,3 +540,6 @@ impl Precompile for Bw6761Pairing {
 		})
 	}
 }
+
+#[cfg(test)]
+mod tests;
