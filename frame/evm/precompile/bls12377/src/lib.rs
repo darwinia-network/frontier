@@ -17,9 +17,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(test)]
-mod tests;
-
 // Arkworks
 use ark_bls12_377::{Bls12_377, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
@@ -46,14 +43,14 @@ const BLS12377_MULTIEXP_DISCOUNT_TABLE: [u16; 128] = [
 /// Encode Fq as `64` bytes by performing Big-Endian encoding of the corresponding (unsigned) integer (top 16 bytes are always zeroes).
 fn encode_fq(field: Fq) -> [u8; 64] {
 	let mut result = [0u8; 64];
-	let rep = field.into_bigint();
+	let rep = field.into_bigint().0;
 
-	result[16..24].copy_from_slice(&rep.0[5].to_be_bytes());
-	result[24..32].copy_from_slice(&rep.0[4].to_be_bytes());
-	result[32..40].copy_from_slice(&rep.0[3].to_be_bytes());
-	result[40..48].copy_from_slice(&rep.0[2].to_be_bytes());
-	result[48..56].copy_from_slice(&rep.0[1].to_be_bytes());
-	result[56..64].copy_from_slice(&rep.0[0].to_be_bytes());
+	result[16..24].copy_from_slice(&rep[5].to_be_bytes());
+	result[24..32].copy_from_slice(&rep[4].to_be_bytes());
+	result[32..40].copy_from_slice(&rep[3].to_be_bytes());
+	result[40..48].copy_from_slice(&rep[2].to_be_bytes());
+	result[48..56].copy_from_slice(&rep[1].to_be_bytes());
+	result[56..64].copy_from_slice(&rep[0].to_be_bytes());
 
 	result
 }
@@ -62,10 +59,8 @@ fn encode_fq(field: Fq) -> [u8; 64] {
 fn encode_g1(g1: G1Affine) -> [u8; 128] {
 	let mut result = [0u8; 128];
 	if !g1.is_zero() {
-		let x_bytes = encode_fq(g1.x);
-		result[0..64].copy_from_slice(&x_bytes[..]);
-		let y_bytes = encode_fq(g1.y);
-		result[64..128].copy_from_slice(&y_bytes[..]);
+		result[0..64].copy_from_slice(&encode_fq(g1.x));
+		result[64..128].copy_from_slice(&encode_fq(g1.y));
 	}
 	result
 }
@@ -74,14 +69,10 @@ fn encode_g1(g1: G1Affine) -> [u8; 128] {
 fn encode_g2(g2: G2Affine) -> [u8; 256] {
 	let mut result = [0u8; 256];
 	if !g2.is_zero() {
-		let x0_bytes = encode_fq(g2.x.c0);
-		result[0..64].copy_from_slice(&x0_bytes[..]);
-		let x1_bytes = encode_fq(g2.x.c1);
-		result[64..128].copy_from_slice(&x1_bytes[..]);
-		let y0_bytes = encode_fq(g2.y.c0);
-		result[128..192].copy_from_slice(&y0_bytes[..]);
-		let y1_bytes = encode_fq(g2.y.c1);
-		result[192..256].copy_from_slice(&y1_bytes[..]);
+		result[0..64].copy_from_slice(&encode_fq(g2.x.c0));
+		result[64..128].copy_from_slice(&encode_fq(g2.x.c1));
+		result[128..192].copy_from_slice(&encode_fq(g2.y.c0));
+		result[192..256].copy_from_slice(&encode_fq(g2.y.c1));
 	}
 	result
 }
@@ -556,3 +547,6 @@ impl Precompile for Bls12377Pairing {
 		})
 	}
 }
+
+#[cfg(test)]
+mod tests;
