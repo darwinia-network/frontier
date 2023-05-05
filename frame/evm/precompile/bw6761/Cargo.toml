@@ -7,10 +7,10 @@ repository = { workspace = true }
 
 [dependencies]
 # Arkworks
-ark-bw6-761 = { version = "0.4.0", default-features = false }
-ark-ec      = { version = "0.4.2", default-features = false }
-ark-ff      = { version = "0.4.2", default-features = false }
-ark-std     = { version = "0.4.0", default-features = false }
+ark-bw6-761 = { workspace = true }
+ark-ec      = { workspace = true }
+ark-ff      = { workspace = true }
+ark-std     = { workspace = true }
 
 # Frontier
 fp-evm = { workspace = true }

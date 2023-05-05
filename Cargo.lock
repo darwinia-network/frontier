@@ -5000,6 +5000,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-evm-precompile-bls12377"
+version = "1.0.0-dev"
+dependencies = [
+ "ark-bls12-377",
+ "ark-ec",
+ "ark-ff",
+ "ark-std",
+ "fp-evm",
+ "pallet-evm-test-vector-support",
+]
+
+[[package]]
 name = "pallet-evm-precompile-bn128"
 version = "2.0.0-dev"
 dependencies = [
