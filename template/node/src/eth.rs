@@ -10,6 +10,7 @@ use futures::{future, prelude::*};
 use sc_client_api::BlockchainEvents;
 use sc_executor::NativeExecutionDispatch;
 use sc_network_sync::SyncingService;
+use sp_blockchain::HeaderBackend;
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
 use sp_api::ConstructRuntimeApi;
 // Frontier
@@ -126,7 +127,7 @@ pub async fn spawn_frontier_tasks<RuntimeApi, Executor>(
 	task_manager: &TaskManager,
 	client: Arc<FullClient<RuntimeApi, Executor>>,
 	backend: Arc<FullBackend>,
-	frontier_backend: FrontierBackend<Arc<FullClient<RuntimeApi, Executor>>>,
+	frontier_backend: FrontierBackend<FullClient<RuntimeApi, Executor>>,
 	filter_pool: Option<FilterPool>,
 	overrides: Arc<OverrideHandle<Block>>,
 	fee_history_cache: FeeHistoryCache,
@@ -142,6 +143,7 @@ pub async fn spawn_frontier_tasks<RuntimeApi, Executor>(
 	RuntimeApi: Send + Sync + 'static,
 	RuntimeApi::RuntimeApi: EthCompatRuntimeApiCollection,
 	Executor: NativeExecutionDispatch + 'static,
+	FullClient<RuntimeApi, Executor>: HeaderBackend<Block>,
 {
 	// Spawn main mapping sync worker background task.
 	match frontier_backend {

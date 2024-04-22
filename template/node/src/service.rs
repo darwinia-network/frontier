@@ -13,6 +13,7 @@ use sc_service::{error::Error as ServiceError, Configuration, PartialComponents,
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_api::ConstructRuntimeApi;
+use sp_blockchain::HeaderBackend;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_core::U256;
 // Runtime
@@ -267,6 +268,7 @@ where
 	RuntimeApi: Send + Sync + 'static,
 	RuntimeApi::RuntimeApi: RuntimeApiCollection,
 	Executor: NativeExecutionDispatch + 'static,
+	FullClient<RuntimeApi, Executor>: HeaderBackend<Block>,
 {
 	let build_import_queue = if sealing.is_some() {
 		build_manual_seal_import_queue::<RuntimeApi, Executor>
@@ -366,6 +368,7 @@ where
 	// for ethereum-compatibility rpc.
 	config.rpc_id_provider = Some(Box::new(fc_rpc::EthereumSubIdProvider));
 
+	let frontier_backend_arc: Arc<FrontierBackend<FullClient<RuntimeApi, Executor>>> = Arc::new(frontier_backend);
 	let rpc_builder = {
 		let client = client.clone();
 		let pool = transaction_pool.clone();
@@ -377,7 +380,8 @@ where
 		let max_past_logs = eth_config.max_past_logs;
 		let execute_gas_limit_multiplier = eth_config.execute_gas_limit_multiplier;
 		let filter_pool = filter_pool.clone();
-		let frontier_backend = frontier_backend.clone();
+		let frontier_backend = frontier_backend_arc.clone();
+		// let frontier_backend = frontier_backend.clone();
 		let pubsub_notification_sinks = pubsub_notification_sinks.clone();
 		let overrides = overrides.clone();
 		let fee_history_cache = fee_history_cache.clone();
@@ -413,10 +417,11 @@ where
 				enable_dev_signer,
 				network: network.clone(),
 				sync: sync_service.clone(),
-				frontier_backend: match frontier_backend.clone() {
-					fc_db::Backend::KeyValue(b) => Arc::new(b),
-					fc_db::Backend::Sql(b) => Arc::new(b),
-				},
+				// frontier_backend: match frontier_backend.clone() {
+				// 	fc_db::Backend::KeyValue(b) => Arc::new(b),
+				// 	fc_db::Backend::Sql(b) => Arc::new(b.into()),
+				// },
+				frontier_backend: frontier_backend_arc.clone(),
 				overrides: overrides.clone(),
 				block_data_cache: block_data_cache.clone(),
 				filter_pool: filter_pool.clone(),
