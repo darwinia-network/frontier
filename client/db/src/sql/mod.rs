@@ -314,22 +314,24 @@ where
 					let block_number =
 						UniqueSaturatedInto::<u32>::unique_saturated_into(header_number) as i32;
 					let is_canon = match client.hash(header_number) {
-						Ok(Some(inner_hash)) => (inner_hash == hash) as i32,
+						Ok(Some(inner_hash)) => {
+							(inner_hash == hash) as i32
+						},
 						Ok(None) => {
-							log::debug!(target: "frontier-sql", "[Metadata] Missing header for block #{block_number} ({hash:?})");
+							log::debug!(target: "bear", "[Metadata] Missing header for block #{block_number} ({hash:?})");
 							0
 						}
 						Err(err) => {
 							log::debug!(
-								target: "frontier-sql",
+								target: "bear",
 								"[Metadata] Failed to retrieve header for block #{block_number} ({hash:?}): {err:?}",
 							);
 							0
 						}
 					};
 
-					log::trace!(
-						target: "frontier-sql",
+					log::debug!(
+						target: "bear",
 						"[Metadata] Prepared block metadata for #{block_number} ({hash:?}) canon={is_canon}",
 					);
 					Ok(BlockMetadata {
@@ -441,6 +443,7 @@ where
 		BE: BackendT<Block> + 'static,
 		BE::State: StateBackend<BlakeTwo256>,
 	{
+		log::debug!(target: "bear", "Insert logs for the block, hash: {:?}", block_hash);
 		let pool = self.pool().clone();
 		let overrides = self.overrides.clone();
 		let _ = async {
@@ -505,11 +508,10 @@ where
 		}
 		.await
 		.map_err(|e| {
-			log::error!(target: "frontier-sql", "{e}");
+			log::error!(target: "bear", "index block logs error: {e}");
 		});
 		// https://www.sqlite.org/pragma.html#pragma_optimize
 		let _ = sqlx::query("PRAGMA optimize").execute(&pool).await;
-		log::debug!(target: "frontier-sql", "Batch committed");
 	}
 
 	fn get_logs<Client, BE>(
@@ -557,10 +559,7 @@ where
 				});
 			}
 		}
-		log::debug!(
-			target: "frontier-sql",
-			"Ready to commit {log_count} logs from {transaction_count} transactions"
-		);
+		log::debug!(target: "bear", "Ready to commit {:?} logs for block {:?}", log_count, substrate_block_hash);
 		logs
 	}
 
@@ -904,7 +903,7 @@ impl<Block: BlockT<Hash = H256>> fc_api::LogIndexerBackend<Block> for Backend<Bl
 				log::debug!(target: "frontier-sql", "Sqlite progress_handler triggered for {log_key2}");
 				false
 			});
-		log::debug!(target: "frontier-sql", "Query: {sql:?} - {log_key}");
+		log::debug!(target: "bear", "Query in the sql backend: {sql:?} - {log_key}");
 
 		let mut out: Vec<FilteredLog<Block>> = vec![];
 		let mut rows = query.fetch(&mut *conn);
@@ -949,11 +948,13 @@ impl<Block: BlockT<Hash = H256>> fc_api::LogIndexerBackend<Block> for Backend<Bl
 			.remove_progress_handler();
 
 		if let Some(err) = maybe_err {
-			log::error!(target: "frontier-sql", "Failed to query sql db: {err:?} - {log_key}");
+			log::error!(target: "bear", "Failed to query sql db: {err:?} - {log_key}");
 			return Err("Failed to query sql db with statement".to_string());
 		}
 
 		log::info!(target: "frontier-sql", "FILTER remove handler - {log_key}");
+
+		log::debug!(target: "bear", "Query result in the sql backend: {:?}", out);
 		Ok(out)
 	}
 }

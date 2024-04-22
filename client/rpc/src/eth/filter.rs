@@ -465,6 +465,7 @@ where
 	}
 
 	async fn logs(&self, filter: Filter) -> RpcResult<Vec<Log>> {
+		log::debug!(target: "bear", "===> RPC logs request, filter: {:?}", filter);
 		let client = Arc::clone(&self.client);
 		let block_data_cache = Arc::clone(&self.block_data_cache);
 		let backend = Arc::clone(&self.backend);
@@ -510,6 +511,7 @@ where
 				.map(|s| s.unique_saturated_into())
 				.unwrap_or(best_number);
 
+			log::debug!(target: "bear", "actually params, from_number: {:?}, to_number: {:?}", from_number, current_number);
 			if backend.is_indexed() {
 				let _ = filter_range_logs_indexed(
 					client.as_ref(),
@@ -535,6 +537,7 @@ where
 				.await?;
 			}
 		}
+		log::debug!(target: "bear", "===> RPC logs return, ret.length: {:?}", ret.len());
 		Ok(ret)
 	}
 }
@@ -597,6 +600,7 @@ where
 		)
 		.await
 	{
+		log::debug!(target: "bear", "Fetch {} logs from the backend sql db", logs.len());
 		let time_fetch = timer_fetch.elapsed().as_millis();
 		let timer_post = Instant::now();
 
@@ -671,6 +675,8 @@ where
 			time_fetch,
 			time_post,
 		);
+	} else {
+		log::debug!(target: "bear", "Failed to query sql db in the filter_range_logs_indexed.");
 	}
 
 	log::info!(

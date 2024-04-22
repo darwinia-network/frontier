@@ -91,7 +91,7 @@ where
 						// Attempt to resume from last indexed block. If there is no data in the db, sync genesis.
 						match indexer_backend.get_last_indexed_canon_block().await.ok() {
 							Some(last_block_hash) => {
-								log::debug!(target: "frontier-sql", "Resume from last block {last_block_hash:?}");
+								log::debug!(target: "frontier-sql", "===> Resume from last block {last_block_hash:?}");
 								if let Some(parent_hash) = client
 									.header(last_block_hash)
 									.ok()
@@ -113,6 +113,7 @@ where
 						};
 					}
 					WorkerCommand::IndexLeaves(leaves) => {
+						log::debug!(target: "bear", "===> receive index leaves command after timeout: leaves: {:?}", leaves);
 						for leaf in leaves {
 							index_block_and_ancestors(
 								client.clone(),
@@ -124,6 +125,7 @@ where
 						}
 					}
 					WorkerCommand::IndexBestBlock(block_hash) => {
+						log::debug!(target: "bear", "===> receive index best block command, block_hash: {:?}", block_hash);
 						index_canonical_block_and_ancestors(
 							client.clone(),
 							substrate_backend.clone(),
@@ -144,15 +146,17 @@ where
 						enacted,
 						retracted,
 					} => {
+						log::debug!(target: "bear", "===> receive canonicalize command, common: {common:?}, enacted: {enacted:?}, retracted: {retracted:?}");
 						canonicalize_blocks(indexer_backend.clone(), common, enacted, retracted)
 							.await;
 					}
 					WorkerCommand::CheckIndexedBlocks => {
+						log::debug!(target: "bear", "===> receive check indexed blocks command");
 						// Fix any indexed blocks that did not have their logs indexed
 						if let Some(block_hash) =
 							indexer_backend.get_first_pending_canon_block().await
 						{
-							log::debug!(target: "frontier-sql", "Indexing pending canonical block {block_hash:?}");
+							log::debug!(target: "bear", "Indexing pending canonical block, add missing logs {block_hash:?}");
 							indexer_backend
 								.index_block_logs(client.clone(), block_hash)
 								.await;
@@ -224,7 +228,7 @@ where
 				}
 				notification = notifications.next() => if let Some(notification) = notification {
 					log::debug!(
-						target: "frontier-sql",
+						target: "bear",
 						"📣  New notification: #{} {:?} (parent {}), best = {}",
 						notification.header.number(),
 						notification.hash,
@@ -234,7 +238,7 @@ where
 					if notification.is_new_best {
 						if let Some(tree_route) = notification.tree_route {
 							log::debug!(
-								target: "frontier-sql",
+								target: "bear",
 								"🔀  Re-org happened at new best {}, proceeding to canonicalize db",
 								notification.hash
 							);
@@ -296,14 +300,13 @@ async fn index_block_and_ancestors<Block, Backend, Client>(
 			break;
 		}
 
-		log::debug!(target: "frontier-sql", "🛠️  Importing {hash:?}");
+		log::debug!(target: "bear", "🛠️  Importing {hash:?}");
 		let _ = indexer_backend
 			.insert_block_metadata(client.clone(), hash)
 			.await
 			.map_err(|e| {
-				log::error!(target: "frontier-sql", "{e}");
+				log::error!(target: "bear", "{e}");
 			});
-		log::debug!(target: "frontier-sql", "Inserted block metadata");
 		indexer_backend.index_block_logs(client.clone(), hash).await;
 
 		if let Ok(Some(header)) = blockchain_backend.header(hash) {
@@ -342,7 +345,7 @@ async fn index_canonical_block_and_ancestors<Block, Backend, Client>(
 
 		// exit if canonical block is already imported
 		if status.indexed && status.canon {
-			log::debug!(target: "frontier-sql", "🔴 Block {hash:?} already imported");
+			log::debug!(target: "bear", "🔴 Block {hash:?} already imported");
 			break;
 		}
 
@@ -364,14 +367,13 @@ async fn index_canonical_block_and_ancestors<Block, Backend, Client>(
 		}
 
 		// Else, import the new block
-		log::debug!(target: "frontier-sql", "🛠️  Importing {hash:?}");
+		log::debug!(target: "bear", "🛠️  Importing {hash:?}");
 		let _ = indexer_backend
 			.insert_block_metadata(client.clone(), hash)
 			.await
 			.map_err(|e| {
-				log::error!(target: "frontier-sql", "{e}");
+				log::error!(target: "bear", "insert block metadata {e}");
 			});
-		log::debug!(target: "frontier-sql", "Inserted block metadata  {hash:?}");
 		indexer_backend.index_block_logs(client.clone(), hash).await;
 
 		if let Ok(Some(header)) = blockchain_backend.header(hash) {
@@ -416,13 +418,13 @@ async fn index_missing_blocks<Block, Client, Backend>(
 	Backend::State: StateBackend<BlakeTwo256>,
 {
 	if let Some(block_number) = indexer_backend.get_first_missing_canon_block().await {
-		log::debug!(target: "frontier-sql", "Missing {block_number:?}");
+		log::debug!(target: "bear", "Inserting missing block {block_number:?}");
 		if block_number == 0 {
 			index_genesis_block(client.clone(), indexer_backend.clone()).await;
 		} else if let Ok(Some(block_hash)) = client.hash(block_number.unique_saturated_into()) {
 			log::debug!(
-				target: "frontier-sql",
-				"Indexing past canonical blocks from #{} {:?}",
+				target: "bear",
+				"Indexing past canonical blocks from #{} {:?}, add missing block",
 				block_number,
 				block_hash,
 			);
@@ -1190,6 +1192,7 @@ mod test {
 			best_block_hashes.insert(0, block_hash);
 			parent_hash = block_hash;
 		}
+		println!("===> bear: testcases: {:?}", best_block_hashes);
 
 		// Mark the block as canon and indexed
 		let block_resume_at = best_block_hashes[0];
@@ -1245,6 +1248,7 @@ mod test {
 				.map(|row| H256::from_slice(&row.get::<Vec<u8>, _>(0)[..]))
 				.collect::<Vec<H256>>();
 		let expected_imported_blocks = best_block_hashes.clone();
+		println!("===> bear: testcases expected result: {:?}", expected_imported_blocks);
 		assert_eq!(expected_imported_blocks, actual_imported_blocks);
 	}
 
@@ -1348,7 +1352,7 @@ mod test {
 		futures_timer::Delay::new(std::time::Duration::from_millis(200)).await;
 
 		// Import 3 blocks as part of normal operation, storing them oldest first.
-		sync_oracle_wrapper.set_sync_status(false);
+		// sync_oracle_wrapper.set_sync_status(false);
 		let mut parent_hash = client
 			.hash(sp_runtime::traits::Zero::zero())
 			.unwrap()
