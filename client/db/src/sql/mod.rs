@@ -38,6 +38,7 @@ use sp_runtime::{
 };
 // Frontier
 use fc_api::{FilteredLog, TransactionMetadata};
+use fc_rpc_core::types::BlockNumberOrHash;
 use fc_storage::OverrideHandle;
 use fp_consensus::{FindLogError, Hashes, Log as ConsensusLog, PostLog, PreLog};
 use fp_rpc::EthereumRuntimeRPCApi;
@@ -314,9 +315,7 @@ where
 					let block_number =
 						UniqueSaturatedInto::<u32>::unique_saturated_into(header_number) as i32;
 					let is_canon = match client.hash(header_number) {
-						Ok(Some(inner_hash)) => {
-							(inner_hash == hash) as i32
-						},
+						Ok(Some(inner_hash)) => (inner_hash == hash) as i32,
 						Ok(None) => {
 							log::debug!(target: "bear", "[Metadata] Missing header for block #{block_number} ({hash:?})");
 							0
@@ -796,6 +795,19 @@ where
 
 #[async_trait::async_trait]
 impl<Block: BlockT<Hash = H256>> fc_api::Backend<Block> for Backend<Block> {
+	async fn block_id(
+		&self,
+		number_or_hash: Option<BlockNumberOrHash>,
+	) -> Result<Option<BlockId<Block>>, String> {
+		// todo!()
+		Ok(None)
+	}
+
+	async fn is_canon(&self, target_hash: Block::Hash) -> bool {
+		// todo!()
+		true
+	}
+
 	async fn block_hash(
 		&self,
 		ethereum_block_hash: &H256,

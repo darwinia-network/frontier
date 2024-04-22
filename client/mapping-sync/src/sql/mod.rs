@@ -1248,7 +1248,10 @@ mod test {
 				.map(|row| H256::from_slice(&row.get::<Vec<u8>, _>(0)[..]))
 				.collect::<Vec<H256>>();
 		let expected_imported_blocks = best_block_hashes.clone();
-		println!("===> bear: testcases expected result: {:?}", expected_imported_blocks);
+		println!(
+			"===> bear: testcases expected result: {:?}",
+			expected_imported_blocks
+		);
 		assert_eq!(expected_imported_blocks, actual_imported_blocks);
 	}
 

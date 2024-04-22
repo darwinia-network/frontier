@@ -22,7 +22,7 @@ use frontier_template_runtime::opaque::Block;
 use crate::client::{FullBackend, FullClient};
 
 /// Frontier DB backend type.
-pub type FrontierBackend = fc_db::Backend<Block>;
+pub type FrontierBackend<C> = fc_db::Backend<Block, C>;
 
 pub fn db_config_dir(config: &Configuration) -> PathBuf {
 	config.base_path.config_dir(config.chain_spec.id())
@@ -126,7 +126,7 @@ pub async fn spawn_frontier_tasks<RuntimeApi, Executor>(
 	task_manager: &TaskManager,
 	client: Arc<FullClient<RuntimeApi, Executor>>,
 	backend: Arc<FullBackend>,
-	frontier_backend: FrontierBackend,
+	frontier_backend: FrontierBackend<Arc<FullClient<RuntimeApi, Executor>>>,
 	filter_pool: Option<FilterPool>,
 	overrides: Arc<OverrideHandle<Block>>,
 	fee_history_cache: FeeHistoryCache,

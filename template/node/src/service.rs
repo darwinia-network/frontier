@@ -59,7 +59,7 @@ pub fn new_partial<RuntimeApi, Executor, BIQ>(
 			Option<Telemetry>,
 			BoxBlockImport,
 			GrandpaLinkHalf<FullClient<RuntimeApi, Executor>>,
-			FrontierBackend,
+			FrontierBackend<FullClient<RuntimeApi, Executor>>,
 			Arc<fc_rpc::OverrideHandle<Block>>,
 		),
 	>,
@@ -708,7 +708,7 @@ pub fn new_chain_ops(
 		Arc<FullBackend>,
 		BasicQueue<Block>,
 		TaskManager,
-		FrontierBackend,
+		FrontierBackend<Client>,
 	),
 	ServiceError,
 > {

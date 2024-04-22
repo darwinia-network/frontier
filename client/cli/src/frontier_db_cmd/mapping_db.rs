@@ -40,10 +40,10 @@ pub enum MappingKey {
 	EthBlockOrTransactionHash(H256),
 }
 
-pub struct MappingDb<'a, C, B: BlockT> {
+pub struct MappingDb<'a, C: HeaderBackend<B>, B: BlockT> {
 	cmd: &'a FrontierDbCmd,
 	client: Arc<C>,
-	backend: Arc<fc_db::kv::Backend<B>>,
+	backend: Arc<fc_db::kv::Backend<B, C>>,
 }
 
 impl<'a, C, B: BlockT> MappingDb<'a, C, B>
@@ -55,7 +55,7 @@ where
 	pub fn new(
 		cmd: &'a FrontierDbCmd,
 		client: Arc<C>,
-		backend: Arc<fc_db::kv::Backend<B>>,
+		backend: Arc<fc_db::kv::Backend<B, C>>,
 	) -> Self {
 		Self {
 			cmd,
@@ -176,4 +176,4 @@ where
 	}
 }
 
-impl<'a, C, B: BlockT> FrontierDbMessage for MappingDb<'a, C, B> {}
+impl<'a, C: HeaderBackend<B>, B: BlockT> FrontierDbMessage for MappingDb<'a, C, B> {}
