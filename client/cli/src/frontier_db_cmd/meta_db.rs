@@ -24,8 +24,8 @@ use std::{
 
 use ethereum_types::H256;
 use serde::Deserialize;
-use sp_blockchain::HeaderBackend;
 // Substrate
+use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Block as BlockT;
 
 use super::{utils::FrontierDbMessage, FrontierDbCmd, Operation};

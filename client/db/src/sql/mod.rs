@@ -38,7 +38,6 @@ use sp_runtime::{
 };
 // Frontier
 use fc_api::{FilteredLog, TransactionMetadata};
-use fc_rpc_core::types::BlockNumberOrHash;
 use fc_storage::OverrideHandle;
 use fp_consensus::{FindLogError, Hashes, Log as ConsensusLog, PostLog, PreLog};
 use fp_rpc::EthereumRuntimeRPCApi;
@@ -97,10 +96,8 @@ pub enum BackendConfig<'a> {
 pub struct Backend<Block: BlockT> {
 	/// The Sqlite connection.
 	pool: SqlitePool,
-
 	/// The additional overrides for the logs handler.
 	overrides: Arc<OverrideHandle<Block>>,
-
 	/// The number of allowed operations for the Sqlite filter call.
 	/// A value of `0` disables the timeout.
 	num_ops_timeout: i32,
@@ -240,6 +237,7 @@ where
 				let block_number = 0i32;
 				let is_canon = 1i32;
 
+				let mut tx = self.pool().begin().await?;
 				let _ = sqlx::query(
 					"INSERT OR IGNORE INTO blocks(
 						ethereum_block_hash,
@@ -254,8 +252,20 @@ where
 				.bind(block_number)
 				.bind(schema)
 				.bind(is_canon)
-				.execute(self.pool())
+				.execute(&mut *tx)
 				.await?;
+
+				sqlx::query("INSERT INTO sync_status(substrate_block_hash) VALUES (?)")
+					.bind(substrate_block_hash)
+					.execute(&mut *tx)
+					.await?;
+				sqlx::query("UPDATE sync_status SET status = 1 WHERE substrate_block_hash = ?")
+					.bind(substrate_block_hash)
+					.execute(&mut *tx)
+					.await?;
+
+				tx.commit().await?;
+				log::debug!(target: "frontier-sql", "The genesis block information has been submitted.");
 			}
 			Some(substrate_genesis_hash)
 		} else {
@@ -317,20 +327,20 @@ where
 					let is_canon = match client.hash(header_number) {
 						Ok(Some(inner_hash)) => (inner_hash == hash) as i32,
 						Ok(None) => {
-							log::debug!(target: "bear", "[Metadata] Missing header for block #{block_number} ({hash:?})");
+							log::debug!(target: "frontier-sql", "[Metadata] Missing header for block #{block_number} ({hash:?})");
 							0
 						}
 						Err(err) => {
 							log::debug!(
-								target: "bear",
+								target: "frontier-sql",
 								"[Metadata] Failed to retrieve header for block #{block_number} ({hash:?}): {err:?}",
 							);
 							0
 						}
 					};
 
-					log::debug!(
-						target: "bear",
+					log::trace!(
+						target: "frontier-sql",
 						"[Metadata] Prepared block metadata for #{block_number} ({hash:?}) canon={is_canon}",
 					);
 					Ok(BlockMetadata {
@@ -442,7 +452,6 @@ where
 		BE: BackendT<Block> + 'static,
 		BE::State: StateBackend<BlakeTwo256>,
 	{
-		log::debug!(target: "bear", "Insert logs for the block, hash: {:?}", block_hash);
 		let pool = self.pool().clone();
 		let overrides = self.overrides.clone();
 		let _ = async {
@@ -507,7 +516,7 @@ where
 		}
 		.await
 		.map_err(|e| {
-			log::error!(target: "bear", "index block logs error: {e}");
+			log::error!(target: "frontier-sql", "{e}");
 		});
 		// https://www.sqlite.org/pragma.html#pragma_optimize
 		let _ = sqlx::query("PRAGMA optimize").execute(&pool).await;
@@ -558,7 +567,10 @@ where
 				});
 			}
 		}
-		log::debug!(target: "bear", "Ready to commit {:?} logs for block {:?}", log_count, substrate_block_hash);
+		log::debug!(
+			target: "frontier-sql",
+			"Ready to commit {log_count} logs from {transaction_count} transactions"
+		);
 		logs
 	}
 
@@ -684,7 +696,7 @@ where
 	}
 
 	/// Retrieve the block hash for the last indexed canon block.
-	pub async fn get_last_indexed_canon_block(&self) -> Result<H256, Error> {
+	pub async fn last_indexed_canon_block(&self) -> Result<H256, Error> {
 		let row = sqlx::query(
 			"SELECT b.substrate_block_hash FROM blocks AS b
 			INNER JOIN sync_status AS s
@@ -795,19 +807,6 @@ where
 
 #[async_trait::async_trait]
 impl<Block: BlockT<Hash = H256>> fc_api::Backend<Block> for Backend<Block> {
-	async fn block_id(
-		&self,
-		number_or_hash: Option<BlockNumberOrHash>,
-	) -> Result<Option<BlockId<Block>>, String> {
-		// todo!()
-		Ok(None)
-	}
-
-	async fn is_canon(&self, target_hash: Block::Hash) -> bool {
-		// todo!()
-		true
-	}
-
 	async fn block_hash(
 		&self,
 		ethereum_block_hash: &H256,
@@ -864,6 +863,21 @@ impl<Block: BlockT<Hash = H256>> fc_api::Backend<Block> for Backend<Block> {
 	fn log_indexer(&self) -> &dyn fc_api::LogIndexerBackend<Block> {
 		self
 	}
+
+	async fn best_hash(&self) -> Result<Block::Hash, String> {
+		// Retrieves the block hash for the latest indexed block, maybe it's not canon.
+		sqlx::query(
+			"SELECT b.substrate_block_hash FROM blocks AS b
+					INNER JOIN sync_status AS s
+					ON s.substrate_block_hash = b.substrate_block_hash
+					WHERE s.status = 1
+					ORDER BY b.block_number DESC LIMIT 1",
+		)
+		.fetch_one(self.pool())
+		.await
+		.map(|row| H256::from_slice(&row.get::<Vec<u8>, _>(0)[..]))
+		.map_err(|e| format!("Failed to fetch best hash: {}", e))
+	}
 }
 
 #[async_trait::async_trait]
@@ -915,7 +929,7 @@ impl<Block: BlockT<Hash = H256>> fc_api::LogIndexerBackend<Block> for Backend<Bl
 				log::debug!(target: "frontier-sql", "Sqlite progress_handler triggered for {log_key2}");
 				false
 			});
-		log::debug!(target: "bear", "Query in the sql backend: {sql:?} - {log_key}");
+		log::debug!(target: "frontier-sql", "Query: {sql:?} - {log_key}");
 
 		let mut out: Vec<FilteredLog<Block>> = vec![];
 		let mut rows = query.fetch(&mut *conn);
@@ -960,13 +974,11 @@ impl<Block: BlockT<Hash = H256>> fc_api::LogIndexerBackend<Block> for Backend<Bl
 			.remove_progress_handler();
 
 		if let Some(err) = maybe_err {
-			log::error!(target: "bear", "Failed to query sql db: {err:?} - {log_key}");
+			log::error!(target: "frontier-sql", "Failed to query sql db: {err:?} - {log_key}");
 			return Err("Failed to query sql db with statement".to_string());
 		}
 
 		log::info!(target: "frontier-sql", "FILTER remove handler - {log_key}");
-
-		log::debug!(target: "bear", "Query result in the sql backend: {:?}", out);
 		Ok(out)
 	}
 }

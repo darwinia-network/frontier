@@ -2,7 +2,6 @@
 
 use std::{cell::RefCell, path::Path, sync::Arc, time::Duration};
 
-use fc_rpc::frontier_backend_client;
 use futures::{channel::mpsc, prelude::*};
 // Substrate
 use prometheus_endpoint::Registry;
@@ -14,10 +13,9 @@ use sc_service::{error::Error as ServiceError, Configuration, PartialComponents,
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_api::ConstructRuntimeApi;
-use sp_blockchain::HeaderBackend;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_core::U256;
-// Runtime
+// Local
 use frontier_template_runtime::{opaque::Block, Hash, TransactionConverter};
 
 use crate::{
@@ -269,7 +267,6 @@ where
 	RuntimeApi: Send + Sync + 'static,
 	RuntimeApi::RuntimeApi: RuntimeApiCollection,
 	Executor: NativeExecutionDispatch + 'static,
-	FullClient<RuntimeApi, Executor>: HeaderBackend<Block>,
 {
 	let build_import_queue = if sealing.is_some() {
 		build_manual_seal_import_queue::<RuntimeApi, Executor>
@@ -351,6 +348,7 @@ where
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;
 	let name = config.network.node_name.clone();
+	let frontier_backend = Arc::new(frontier_backend);
 	let enable_grandpa = !config.disable_grandpa && sealing.is_none();
 	let prometheus_registry = config.prometheus_registry().cloned();
 
@@ -366,8 +364,6 @@ where
 	> = Default::default();
 	let pubsub_notification_sinks = Arc::new(pubsub_notification_sinks);
 
-	let frontier_backend_arc = Arc::new(frontier_backend);
-
 	// for ethereum-compatibility rpc.
 	config.rpc_id_provider = Some(Box::new(fc_rpc::EthereumSubIdProvider));
 	let rpc_builder = {
@@ -381,7 +377,7 @@ where
 		let max_past_logs = eth_config.max_past_logs;
 		let execute_gas_limit_multiplier = eth_config.execute_gas_limit_multiplier;
 		let filter_pool = filter_pool.clone();
-		let frontier_backend = frontier_backend_arc.clone();
+		let frontier_backend = frontier_backend.clone();
 		let pubsub_notification_sinks = pubsub_notification_sinks.clone();
 		let overrides = overrides.clone();
 		let fee_history_cache = fee_history_cache.clone();
@@ -470,7 +466,7 @@ where
 		&task_manager,
 		client.clone(),
 		backend,
-		frontier_backend_arc,
+		frontier_backend,
 		filter_pool,
 		overrides,
 		fee_history_cache,

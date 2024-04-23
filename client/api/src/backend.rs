@@ -19,9 +19,8 @@
 use scale_codec::{Decode, Encode};
 // Substrate
 use sp_core::{H160, H256};
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+use sp_runtime::traits::Block as BlockT;
 // Frontier
-use fc_rpc_core::types::BlockNumberOrHash;
 use fp_storage::EthereumStorageSchema;
 
 #[derive(Clone, Debug, Eq, PartialEq, Encode, Decode)]
@@ -34,15 +33,6 @@ pub struct TransactionMetadata<Block: BlockT> {
 /// The frontier backend interface.
 #[async_trait::async_trait]
 pub trait Backend<Block: BlockT>: Send + Sync {
-	/// Get the substrate block id with the given number or hash.
-	async fn block_id(
-		&self,
-		number_or_hash: Option<BlockNumberOrHash>,
-	) -> Result<Option<BlockId<Block>>, String>;
-
-	/// Check if the block is canon.
-	async fn is_canon(&self, target_hash: Block::Hash) -> bool;
-
 	/// Get the substrate hash with the given ethereum block hash.
 	async fn block_hash(
 		&self,
@@ -62,6 +52,9 @@ pub trait Backend<Block: BlockT>: Send + Sync {
 	fn is_indexed(&self) -> bool {
 		self.log_indexer().is_indexed()
 	}
+
+	/// Get the latest substrate block hash in the sql database.
+	async fn best_hash(&self) -> Result<Block::Hash, String>;
 }
 
 #[derive(Debug, Eq, PartialEq)]

@@ -18,4 +18,3 @@ sp-core = { workspace = true, features = ["default"] }
 sp-runtime = { workspace = true, features = ["default"] }
 # Frontier
 fp-storage = { workspace = true, features = ["default"] }
-fc-rpc-core = { workspace = true }

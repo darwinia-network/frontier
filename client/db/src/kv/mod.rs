@@ -33,14 +33,10 @@ pub use sc_client_db::DatabaseSource;
 use sp_blockchain::HeaderBackend;
 use sp_core::{H160, H256};
 pub use sp_database::Database;
-use sp_runtime::{
-	generic::BlockId,
-	traits::{Block as BlockT, UniqueSaturatedInto, Zero},
-};
+use sp_runtime::traits::Block as BlockT;
 
 // Frontier
 use fc_api::{FilteredLog, TransactionMetadata};
-use fc_rpc_core::types::BlockNumberOrHash;
 use fp_storage::{EthereumStorageSchema, PALLET_ETHEREUM_SCHEMA_CACHE};
 
 const DB_HASH_LEN: usize = 32;
@@ -76,39 +72,6 @@ pub struct Backend<Block: BlockT, C: HeaderBackend<Block>> {
 
 #[async_trait::async_trait]
 impl<Block: BlockT, C: HeaderBackend<Block>> fc_api::Backend<Block> for Backend<Block, C> {
-	async fn block_id(
-		&self,
-		number_or_hash: Option<BlockNumberOrHash>,
-	) -> Result<Option<BlockId<Block>>, String> {
-		Ok(match number_or_hash.unwrap_or(BlockNumberOrHash::Latest) {
-			BlockNumberOrHash::Hash { hash, .. } => {
-				if let Ok(Some(substrate_hashes)) = self.block_hash(&hash).await {
-					for hash in substrate_hashes {
-						if self.is_canon(hash).await {
-							return Ok(Some(BlockId::Hash(hash)));
-						}
-					}
-				}
-				None
-			}
-			BlockNumberOrHash::Num(number) => Some(BlockId::Number(number.unique_saturated_into())),
-			BlockNumberOrHash::Latest => Some(BlockId::Hash(self.client.info().best_hash)),
-			BlockNumberOrHash::Earliest => Some(BlockId::Number(Zero::zero())),
-			BlockNumberOrHash::Pending => None,
-			BlockNumberOrHash::Safe => Some(BlockId::Hash(self.client.info().finalized_hash)),
-			BlockNumberOrHash::Finalized => Some(BlockId::Hash(self.client.info().finalized_hash)),
-		})
-	}
-
-	async fn is_canon(&self, target_hash: Block::Hash) -> bool {
-		if let Ok(Some(number)) = self.client.number(target_hash) {
-			if let Ok(Some(hash)) = self.client.hash(number) {
-				return hash == target_hash;
-			}
-		}
-		false
-	}
-
 	async fn block_hash(
 		&self,
 		ethereum_block_hash: &H256,
@@ -126,6 +89,10 @@ impl<Block: BlockT, C: HeaderBackend<Block>> fc_api::Backend<Block> for Backend<
 
 	fn log_indexer(&self) -> &dyn fc_api::LogIndexerBackend<Block> {
 		&self.log_indexer
+	}
+
+	async fn best_hash(&self) -> Result<Block::Hash, String> {
+		Ok(self.client.info().best_hash)
 	}
 }
 

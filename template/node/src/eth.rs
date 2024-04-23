@@ -12,7 +12,6 @@ use sc_executor::NativeExecutionDispatch;
 use sc_network_sync::SyncingService;
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
 use sp_api::ConstructRuntimeApi;
-use sp_blockchain::HeaderBackend;
 // Frontier
 pub use fc_consensus::FrontierBlockImport;
 use fc_rpc::{EthTask, OverrideHandle};
@@ -143,7 +142,6 @@ pub async fn spawn_frontier_tasks<RuntimeApi, Executor>(
 	RuntimeApi: Send + Sync + 'static,
 	RuntimeApi::RuntimeApi: EthCompatRuntimeApiCollection,
 	Executor: NativeExecutionDispatch + 'static,
-	FullClient<RuntimeApi, Executor>: HeaderBackend<Block>,
 {
 	// Spawn main mapping sync worker background task.
 	match &*frontier_backend {

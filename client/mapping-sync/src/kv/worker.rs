@@ -259,7 +259,7 @@ mod tests {
 		});
 
 		let frontier_backend = Arc::new(
-			fc_db::kv::Backend::<OpaqueBlock>::new(
+			fc_db::kv::Backend::<OpaqueBlock, _>::new(
 				client.clone(),
 				&fc_db::kv::DatabaseSettings {
 					source: sc_client_db::DatabaseSource::RocksDb {
@@ -397,7 +397,7 @@ mod tests {
 		});
 
 		let frontier_backend = Arc::new(
-			fc_db::kv::Backend::<OpaqueBlock>::new(
+			fc_db::kv::Backend::<OpaqueBlock, _>::new(
 				client.clone(),
 				&fc_db::kv::DatabaseSettings {
 					source: sc_client_db::DatabaseSource::RocksDb {
