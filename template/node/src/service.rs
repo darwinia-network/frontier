@@ -2,6 +2,7 @@
 
 use std::{cell::RefCell, path::Path, sync::Arc, time::Duration};
 
+use fc_rpc::frontier_backend_client;
 use futures::{channel::mpsc, prelude::*};
 // Substrate
 use prometheus_endpoint::Registry;
@@ -119,11 +120,11 @@ where
 
 	let overrides = crate::rpc::overrides_handle(client.clone());
 	let frontier_backend = match eth_config.frontier_backend_type {
-		BackendType::KeyValue => FrontierBackend::KeyValue(fc_db::kv::Backend::open(
+		BackendType::KeyValue => FrontierBackend::KeyValue(Arc::new(fc_db::kv::Backend::open(
 			Arc::clone(&client),
 			&config.database,
 			&db_config_dir(config),
-		)?),
+		)?)),
 		BackendType::Sql => {
 			let db_path = db_config_dir(config).join("sql");
 			std::fs::create_dir_all(&db_path).expect("failed creating sql db directory");
@@ -143,7 +144,7 @@ where
 				overrides.clone(),
 			))
 			.unwrap_or_else(|err| panic!("failed creating sql backend: {:?}", err));
-			FrontierBackend::Sql(backend)
+			FrontierBackend::Sql(Arc::new(backend))
 		}
 	};
 
@@ -365,10 +366,10 @@ where
 	> = Default::default();
 	let pubsub_notification_sinks = Arc::new(pubsub_notification_sinks);
 
+	let frontier_backend_arc = Arc::new(frontier_backend);
+
 	// for ethereum-compatibility rpc.
 	config.rpc_id_provider = Some(Box::new(fc_rpc::EthereumSubIdProvider));
-
-	let frontier_backend_arc: Arc<FrontierBackend<FullClient<RuntimeApi, Executor>>> = Arc::new(frontier_backend);
 	let rpc_builder = {
 		let client = client.clone();
 		let pool = transaction_pool.clone();
@@ -381,7 +382,6 @@ where
 		let execute_gas_limit_multiplier = eth_config.execute_gas_limit_multiplier;
 		let filter_pool = filter_pool.clone();
 		let frontier_backend = frontier_backend_arc.clone();
-		// let frontier_backend = frontier_backend.clone();
 		let pubsub_notification_sinks = pubsub_notification_sinks.clone();
 		let overrides = overrides.clone();
 		let fee_history_cache = fee_history_cache.clone();
@@ -417,11 +417,10 @@ where
 				enable_dev_signer,
 				network: network.clone(),
 				sync: sync_service.clone(),
-				// frontier_backend: match frontier_backend.clone() {
-				// 	fc_db::Backend::KeyValue(b) => Arc::new(b),
-				// 	fc_db::Backend::Sql(b) => Arc::new(b.into()),
-				// },
-				frontier_backend: frontier_backend_arc.clone(),
+				frontier_backend: match &*frontier_backend {
+					fc_db::Backend::KeyValue(b) => b.clone(),
+					fc_db::Backend::Sql(b) => b.clone(),
+				},
 				overrides: overrides.clone(),
 				block_data_cache: block_data_cache.clone(),
 				filter_pool: filter_pool.clone(),
@@ -471,7 +470,7 @@ where
 		&task_manager,
 		client.clone(),
 		backend,
-		frontier_backend,
+		frontier_backend_arc,
 		filter_pool,
 		overrides,
 		fee_history_cache,

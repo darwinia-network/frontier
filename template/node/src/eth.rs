@@ -10,9 +10,9 @@ use futures::{future, prelude::*};
 use sc_client_api::BlockchainEvents;
 use sc_executor::NativeExecutionDispatch;
 use sc_network_sync::SyncingService;
-use sp_blockchain::HeaderBackend;
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
 use sp_api::ConstructRuntimeApi;
+use sp_blockchain::HeaderBackend;
 // Frontier
 pub use fc_consensus::FrontierBlockImport;
 use fc_rpc::{EthTask, OverrideHandle};
@@ -127,7 +127,7 @@ pub async fn spawn_frontier_tasks<RuntimeApi, Executor>(
 	task_manager: &TaskManager,
 	client: Arc<FullClient<RuntimeApi, Executor>>,
 	backend: Arc<FullBackend>,
-	frontier_backend: FrontierBackend<FullClient<RuntimeApi, Executor>>,
+	frontier_backend: Arc<FrontierBackend<FullClient<RuntimeApi, Executor>>>,
 	filter_pool: Option<FilterPool>,
 	overrides: Arc<OverrideHandle<Block>>,
 	fee_history_cache: FeeHistoryCache,
@@ -146,7 +146,7 @@ pub async fn spawn_frontier_tasks<RuntimeApi, Executor>(
 	FullClient<RuntimeApi, Executor>: HeaderBackend<Block>,
 {
 	// Spawn main mapping sync worker background task.
-	match frontier_backend {
+	match &*frontier_backend {
 		fc_db::Backend::KeyValue(b) => {
 			task_manager.spawn_essential_handle().spawn(
 				"frontier-mapping-sync-worker",
@@ -157,7 +157,7 @@ pub async fn spawn_frontier_tasks<RuntimeApi, Executor>(
 					client.clone(),
 					backend,
 					overrides.clone(),
-					Arc::new(b),
+					b.clone(),
 					3,
 					0,
 					fc_mapping_sync::SyncStrategy::Normal,
@@ -174,7 +174,7 @@ pub async fn spawn_frontier_tasks<RuntimeApi, Executor>(
 				fc_mapping_sync::sql::SyncWorker::run(
 					client.clone(),
 					backend,
-					Arc::new(b),
+					b.clone(),
 					client.import_notification_stream(),
 					fc_mapping_sync::sql::SyncWorkerConfig {
 						read_notification_timeout: Duration::from_secs(10),

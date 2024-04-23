@@ -28,7 +28,7 @@ use fp_rpc::{ConvertTransaction, ConvertTransactionRuntimeApi, EthereumRuntimeRP
 use crate::eth::FrontierBackend;
 
 /// Extra dependencies for Ethereum compatibility.
-pub struct EthDeps<B: BlockT, C: HeaderBackend<B>, P, A: ChainApi, CT, CIDP> {
+pub struct EthDeps<B: BlockT, C, P, A: ChainApi, CT, CIDP> {
 	/// The client instance to use.
 	pub client: Arc<C>,
 	/// Transaction pool instance.
@@ -46,7 +46,7 @@ pub struct EthDeps<B: BlockT, C: HeaderBackend<B>, P, A: ChainApi, CT, CIDP> {
 	/// Chain syncing service
 	pub sync: Arc<SyncingService<B>>,
 	/// Frontier Backend.
-	pub frontier_backend: Arc<FrontierBackend<C>>,
+	pub frontier_backend: Arc<dyn fc_api::Backend<B>>,
 	/// Ethereum data access overrides.
 	pub overrides: Arc<OverrideHandle<B>>,
 	/// Cache for Ethereum block data.
