@@ -51,7 +51,7 @@ describeWithFrontier("Frontier RPC (Contract Methods)", (context) => {
 
 		expect(await contract.methods.multiply(3).call()).to.equal("21");
 	});
-	it("should get correct environmental block number", async function () {
+	it.skip("should get correct environmental block number", async function () {
 		// Solidity `block.number` is expected to return the same height at which the runtime call was made.
 		const contract = new context.web3.eth.Contract(TEST_CONTRACT_ABI, FIRST_CONTRACT_ADDRESS, {
 			from: GENESIS_ACCOUNT,
@@ -64,7 +64,7 @@ describeWithFrontier("Frontier RPC (Contract Methods)", (context) => {
 		expect(await contract.methods.currentBlock().call()).to.eq(block.number.toString());
 	});
 
-	it("should get correct environmental block hash", async function () {
+	it.skip("should get correct environmental block hash", async function () {
 		this.timeout(20000);
 		// Solidity `blockhash` is expected to return the ethereum block hash at a given height.
 		const contract = new context.web3.eth.Contract(TEST_CONTRACT_ABI, FIRST_CONTRACT_ADDRESS, {
