@@ -197,27 +197,21 @@ pub mod frontier_backend_client {
 		B: BlockT,
 		C: HeaderBackend<B> + 'static,
 	{
-		match number.unwrap_or(BlockNumberOrHash::Latest) {
+		Ok(match number.unwrap_or(BlockNumberOrHash::Latest) {
 			BlockNumberOrHash::Hash { hash, .. } => {
 				if let Ok(Some(hash)) = load_hash::<B, C>(client, backend, hash).await {
-					Ok(Some(BlockId::Hash(hash)))
+					Some(BlockId::Hash(hash))
 				} else {
-					Ok(None)
+					None
 				}
 			}
-			BlockNumberOrHash::Num(number) => {
-				Ok(Some(BlockId::Number(number.unique_saturated_into())))
-			}
-			BlockNumberOrHash::Latest => backend
-				.best_hash()
-				.await
-				.map(|hash| Some(BlockId::Hash(hash)))
-				.map_err(|err| internal_err(format!("fetch to fetch the best hash: {:?}", err))),
-			BlockNumberOrHash::Earliest => Ok(Some(BlockId::Number(Zero::zero()))),
-			BlockNumberOrHash::Pending => Ok(None),
-			BlockNumberOrHash::Safe => Ok(Some(BlockId::Hash(client.info().finalized_hash))),
-			BlockNumberOrHash::Finalized => Ok(Some(BlockId::Hash(client.info().finalized_hash))),
-		}
+			BlockNumberOrHash::Num(number) => Some(BlockId::Number(number.unique_saturated_into())),
+			BlockNumberOrHash::Latest => Some(BlockId::Hash(client.info().best_hash)),
+			BlockNumberOrHash::Earliest => Some(BlockId::Number(Zero::zero())),
+			BlockNumberOrHash::Pending => None,
+			BlockNumberOrHash::Safe => Some(BlockId::Hash(client.info().finalized_hash)),
+			BlockNumberOrHash::Finalized => Some(BlockId::Hash(client.info().finalized_hash)),
+		})
 	}
 
 	pub async fn load_hash<B: BlockT, C>(
@@ -365,8 +359,8 @@ mod tests {
 	fn open_frontier_backend<Block: BlockT, C: HeaderBackend<Block>>(
 		client: Arc<C>,
 		path: PathBuf,
-	) -> Result<Arc<fc_db::kv::Backend<Block, C>>, String> {
-		Ok(Arc::new(fc_db::kv::Backend::<Block, C>::new(
+	) -> Result<Arc<fc_db::kv::Backend<Block>>, String> {
+		Ok(Arc::new(fc_db::kv::Backend::<Block>::new(
 			client,
 			&fc_db::kv::DatabaseSettings {
 				source: sc_client_db::DatabaseSource::RocksDb {

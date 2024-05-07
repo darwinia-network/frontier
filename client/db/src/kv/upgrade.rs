@@ -348,10 +348,8 @@ mod tests {
 	pub fn open_frontier_backend<Block: BlockT, C: HeaderBackend<Block>>(
 		client: Arc<C>,
 		setting: &crate::kv::DatabaseSettings,
-	) -> Result<Arc<crate::kv::Backend<Block, C>>, String> {
-		Ok(Arc::new(crate::kv::Backend::<Block, C>::new(
-			client, setting,
-		)?))
+	) -> Result<Arc<crate::kv::Backend<Block>>, String> {
+		Ok(Arc::new(crate::kv::Backend::<Block>::new(client, setting)?))
 	}
 
 	#[cfg_attr(not(feature = "rocksdb"), ignore)]
