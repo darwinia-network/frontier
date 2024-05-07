@@ -34,7 +34,6 @@ use sp_blockchain::HeaderBackend;
 use sp_core::{H160, H256};
 pub use sp_database::Database;
 use sp_runtime::traits::Block as BlockT;
-
 // Frontier
 use fc_api::{FilteredLog, TransactionMetadata};
 use fp_storage::{EthereumStorageSchema, PALLET_ETHEREUM_SCHEMA_CACHE};
@@ -63,15 +62,14 @@ pub mod static_keys {
 }
 
 #[derive(Clone)]
-pub struct Backend<Block: BlockT, C: HeaderBackend<Block>> {
-	client: Arc<C>,
+pub struct Backend<Block: BlockT> {
 	meta: Arc<MetaDb<Block>>,
 	mapping: Arc<MappingDb<Block>>,
 	log_indexer: LogIndexerBackend<Block>,
 }
 
 #[async_trait::async_trait]
-impl<Block: BlockT, C: HeaderBackend<Block>> fc_api::Backend<Block> for Backend<Block, C> {
+impl<Block: BlockT> fc_api::Backend<Block> for Backend<Block> {
 	async fn block_hash(
 		&self,
 		ethereum_block_hash: &H256,
@@ -89,10 +87,6 @@ impl<Block: BlockT, C: HeaderBackend<Block>> fc_api::Backend<Block> for Backend<
 
 	fn log_indexer(&self) -> &dyn fc_api::LogIndexerBackend<Block> {
 		&self.log_indexer
-	}
-
-	async fn best_hash(&self) -> Result<Block::Hash, String> {
-		Ok(self.client.info().best_hash)
 	}
 }
 
@@ -121,8 +115,8 @@ pub fn frontier_database_dir(db_config_dir: &Path, db_path: &str) -> PathBuf {
 	db_config_dir.join("frontier").join(db_path)
 }
 
-impl<Block: BlockT, C: HeaderBackend<Block>> Backend<Block, C> {
-	pub fn open(
+impl<Block: BlockT> Backend<Block> {
+	pub fn open<C: HeaderBackend<Block>>(
 		client: Arc<C>,
 		database: &DatabaseSource,
 		db_config_dir: &Path,
@@ -154,11 +148,13 @@ impl<Block: BlockT, C: HeaderBackend<Block>> Backend<Block, C> {
 		)
 	}
 
-	pub fn new(client: Arc<C>, config: &DatabaseSettings) -> Result<Self, String> {
-		let db = utils::open_database::<Block, C>(client.clone(), config)?;
+	pub fn new<C: HeaderBackend<Block>>(
+		client: Arc<C>,
+		config: &DatabaseSettings,
+	) -> Result<Self, String> {
+		let db = utils::open_database::<Block, C>(client, config)?;
 
 		Ok(Self {
-			client,
 			mapping: Arc::new(MappingDb {
 				db: db.clone(),
 				write_lock: Arc::new(Mutex::new(())),

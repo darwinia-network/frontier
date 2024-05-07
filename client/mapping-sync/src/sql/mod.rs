@@ -89,7 +89,7 @@ where
 				match cmd {
 					WorkerCommand::ResumeSync => {
 						// Attempt to resume from last indexed block. If there is no data in the db, sync genesis.
-						match indexer_backend.last_indexed_canon_block().await.ok() {
+						match indexer_backend.get_last_indexed_canon_block().await.ok() {
 							Some(last_block_hash) => {
 								log::debug!(target: "frontier-sql", "Resume from last block {last_block_hash:?}");
 								if let Some(parent_hash) = client
@@ -371,7 +371,7 @@ async fn index_canonical_block_and_ancestors<Block, Backend, Client>(
 			.map_err(|e| {
 				log::error!(target: "frontier-sql", "{e}");
 			});
-		log::debug!(target: "frontier-sql", "Inserted block metadata {hash:?}");
+		log::debug!(target: "frontier-sql", "Inserted block metadata  {hash:?}");
 		indexer_backend.index_block_logs(client.clone(), hash).await;
 
 		if let Ok(Some(header)) = blockchain_backend.header(hash) {

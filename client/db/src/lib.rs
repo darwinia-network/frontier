@@ -16,13 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// #![deny(unused_crate_dependencies)]
-
-use std::sync::Arc;
+#![deny(unused_crate_dependencies)]
 
 // Substrate
 pub use sc_client_db::DatabaseSource;
-use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Block as BlockT;
 
 pub mod kv;
@@ -30,8 +27,8 @@ pub mod kv;
 pub mod sql;
 
 #[derive(Clone)]
-pub enum Backend<Block: BlockT, C: HeaderBackend<Block>> {
-	KeyValue(Arc<kv::Backend<Block, C>>),
+pub enum Backend<Block: BlockT> {
+	KeyValue(kv::Backend<Block>),
 	#[cfg(feature = "sql")]
-	Sql(Arc<sql::Backend<Block>>),
+	Sql(sql::Backend<Block>),
 }

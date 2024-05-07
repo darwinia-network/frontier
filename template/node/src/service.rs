@@ -15,7 +15,7 @@ use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_api::ConstructRuntimeApi;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_core::U256;
-// Local
+// Runtime
 use frontier_template_runtime::{opaque::Block, Hash, TransactionConverter};
 
 use crate::{
@@ -59,7 +59,7 @@ pub fn new_partial<RuntimeApi, Executor, BIQ>(
 			Option<Telemetry>,
 			BoxBlockImport,
 			GrandpaLinkHalf<FullClient<RuntimeApi, Executor>>,
-			FrontierBackend<FullClient<RuntimeApi, Executor>>,
+			FrontierBackend,
 			Arc<fc_rpc::OverrideHandle<Block>>,
 		),
 	>,
@@ -118,11 +118,11 @@ where
 
 	let overrides = crate::rpc::overrides_handle(client.clone());
 	let frontier_backend = match eth_config.frontier_backend_type {
-		BackendType::KeyValue => FrontierBackend::KeyValue(Arc::new(fc_db::kv::Backend::open(
+		BackendType::KeyValue => FrontierBackend::KeyValue(fc_db::kv::Backend::open(
 			Arc::clone(&client),
 			&config.database,
 			&db_config_dir(config),
-		)?)),
+		)?),
 		BackendType::Sql => {
 			let db_path = db_config_dir(config).join("sql");
 			std::fs::create_dir_all(&db_path).expect("failed creating sql db directory");
@@ -142,7 +142,7 @@ where
 				overrides.clone(),
 			))
 			.unwrap_or_else(|err| panic!("failed creating sql backend: {:?}", err));
-			FrontierBackend::Sql(Arc::new(backend))
+			FrontierBackend::Sql(backend)
 		}
 	};
 
@@ -348,7 +348,6 @@ where
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;
 	let name = config.network.node_name.clone();
-	let frontier_backend = Arc::new(frontier_backend);
 	let enable_grandpa = !config.disable_grandpa && sealing.is_none();
 	let prometheus_registry = config.prometheus_registry().cloned();
 
@@ -366,6 +365,7 @@ where
 
 	// for ethereum-compatibility rpc.
 	config.rpc_id_provider = Some(Box::new(fc_rpc::EthereumSubIdProvider));
+
 	let rpc_builder = {
 		let client = client.clone();
 		let pool = transaction_pool.clone();
@@ -413,9 +413,9 @@ where
 				enable_dev_signer,
 				network: network.clone(),
 				sync: sync_service.clone(),
-				frontier_backend: match &*frontier_backend {
-					fc_db::Backend::KeyValue(b) => b.clone(),
-					fc_db::Backend::Sql(b) => b.clone(),
+				frontier_backend: match frontier_backend.clone() {
+					fc_db::Backend::KeyValue(b) => Arc::new(b),
+					fc_db::Backend::Sql(b) => Arc::new(b),
 				},
 				overrides: overrides.clone(),
 				block_data_cache: block_data_cache.clone(),
@@ -708,7 +708,7 @@ pub fn new_chain_ops(
 		Arc<FullBackend>,
 		BasicQueue<Block>,
 		TaskManager,
-		FrontierBackend<Client>,
+		FrontierBackend,
 	),
 	ServiceError,
 > {

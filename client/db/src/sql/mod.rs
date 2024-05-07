@@ -96,8 +96,10 @@ pub enum BackendConfig<'a> {
 pub struct Backend<Block: BlockT> {
 	/// The Sqlite connection.
 	pool: SqlitePool,
+
 	/// The additional overrides for the logs handler.
 	overrides: Arc<OverrideHandle<Block>>,
+
 	/// The number of allowed operations for the Sqlite filter call.
 	/// A value of `0` disables the timeout.
 	num_ops_timeout: i32,
@@ -237,7 +239,6 @@ where
 				let block_number = 0i32;
 				let is_canon = 1i32;
 
-				let mut tx = self.pool().begin().await?;
 				let _ = sqlx::query(
 					"INSERT OR IGNORE INTO blocks(
 						ethereum_block_hash,
@@ -252,20 +253,8 @@ where
 				.bind(block_number)
 				.bind(schema)
 				.bind(is_canon)
-				.execute(&mut *tx)
+				.execute(self.pool())
 				.await?;
-
-				sqlx::query("INSERT INTO sync_status(substrate_block_hash) VALUES (?)")
-					.bind(substrate_block_hash)
-					.execute(&mut *tx)
-					.await?;
-				sqlx::query("UPDATE sync_status SET status = 1 WHERE substrate_block_hash = ?")
-					.bind(substrate_block_hash)
-					.execute(&mut *tx)
-					.await?;
-
-				tx.commit().await?;
-				log::debug!(target: "frontier-sql", "The genesis block information has been submitted.");
 			}
 			Some(substrate_genesis_hash)
 		} else {
@@ -520,6 +509,7 @@ where
 		});
 		// https://www.sqlite.org/pragma.html#pragma_optimize
 		let _ = sqlx::query("PRAGMA optimize").execute(&pool).await;
+		log::debug!(target: "frontier-sql", "Batch committed");
 	}
 
 	fn get_logs<Client, BE>(
@@ -696,7 +686,7 @@ where
 	}
 
 	/// Retrieve the block hash for the last indexed canon block.
-	pub async fn last_indexed_canon_block(&self) -> Result<H256, Error> {
+	pub async fn get_last_indexed_canon_block(&self) -> Result<H256, Error> {
 		let row = sqlx::query(
 			"SELECT b.substrate_block_hash FROM blocks AS b
 			INNER JOIN sync_status AS s
@@ -862,21 +852,6 @@ impl<Block: BlockT<Hash = H256>> fc_api::Backend<Block> for Backend<Block> {
 
 	fn log_indexer(&self) -> &dyn fc_api::LogIndexerBackend<Block> {
 		self
-	}
-
-	async fn best_hash(&self) -> Result<Block::Hash, String> {
-		// Retrieves the block hash for the latest indexed block, maybe it's not canon.
-		sqlx::query(
-			"SELECT b.substrate_block_hash FROM blocks AS b
-					INNER JOIN sync_status AS s
-					ON s.substrate_block_hash = b.substrate_block_hash
-					WHERE s.status = 1
-					ORDER BY b.block_number DESC LIMIT 1",
-		)
-		.fetch_one(self.pool())
-		.await
-		.map(|row| H256::from_slice(&row.get::<Vec<u8>, _>(0)[..]))
-		.map_err(|e| format!("Failed to fetch best hash: {}", e))
 	}
 }
 
