@@ -866,17 +866,11 @@ impl<Block: BlockT<Hash = H256>> fc_api::Backend<Block> for Backend<Block> {
 
 	async fn best_hash(&self) -> Result<Block::Hash, String> {
 		// Retrieves the block hash for the latest indexed block, maybe it's not canon.
-		sqlx::query(
-			"SELECT b.substrate_block_hash FROM blocks AS b
-					INNER JOIN sync_status AS s
-					ON s.substrate_block_hash = b.substrate_block_hash
-					WHERE s.status = 1
-					ORDER BY b.block_number DESC LIMIT 1",
-		)
-		.fetch_one(self.pool())
-		.await
-		.map(|row| H256::from_slice(&row.get::<Vec<u8>, _>(0)[..]))
-		.map_err(|e| format!("Failed to fetch best hash: {}", e))
+		sqlx::query("SELECT substrate_block_hash FROM blocks ORDER BY block_number DESC LIMIT 1")
+			.fetch_one(self.pool())
+			.await
+			.map(|row| H256::from_slice(&row.get::<Vec<u8>, _>(0)[..]))
+			.map_err(|e| format!("Failed to fetch best hash: {}", e))
 	}
 }
 
