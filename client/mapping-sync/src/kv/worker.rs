@@ -70,10 +70,6 @@ impl<Block: BlockT, C, BE> MappingSyncWorker<Block, C, BE> {
 		overrides: Arc<OverrideHandle<Block>>,
 		frontier_backend: Arc<fc_db::kv::Backend<Block>>,
 		retry_times: usize,
-		sync_from: <Block::Header as HeaderT>::Number,
-		strategy: SyncStrategy,
-		sync_oracle: Arc<dyn SyncOracle + Send + Sync + 'static>,
-		pubsub_notification_sinks: Arc<
 			crate::EthereumBlockNotificationSinks<crate::EthereumBlockNotification<Block>>,
 		>,
 	) -> Self {
@@ -259,7 +255,7 @@ mod tests {
 		});
 
 		let frontier_backend = Arc::new(
-			fc_db::kv::Backend::<OpaqueBlock>::new(
+			fc_db::kv::Backend::<OpaqueBlock, _>::new(
 				client.clone(),
 				&fc_db::kv::DatabaseSettings {
 					source: sc_client_db::DatabaseSource::RocksDb {
@@ -409,7 +405,7 @@ mod tests {
 		});
 
 		let frontier_backend = Arc::new(
-			fc_db::kv::Backend::<OpaqueBlock>::new(
+			fc_db::kv::Backend::<OpaqueBlock, _>::new(
 				client.clone(),
 				&fc_db::kv::DatabaseSettings {
 					source: sc_client_db::DatabaseSource::RocksDb {
