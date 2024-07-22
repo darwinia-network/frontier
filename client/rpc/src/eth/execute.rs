@@ -1044,7 +1044,8 @@ fn fee_details(
 		// Default to EIP-1559 transaction
 		_ => Ok(FeeDetails {
 			gas_price: None,
-			max_fee_per_gas: Some(U256::zero()),
+			// Old runtimes require max_fee_per_gas to be None for non transactional calls.
+			max_fee_per_gas: None,
 			max_priority_fee_per_gas: Some(U256::zero()),
 			fee_cap: U256::zero(),
 		}),
