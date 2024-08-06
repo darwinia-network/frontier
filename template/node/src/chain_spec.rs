@@ -10,15 +10,13 @@ use sp_core::ecdsa;
 use sp_core::{Pair, Public, H160, U256};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 // Frontier
-use frontier_template_runtime::{
-	AccountId, Balance, RuntimeGenesisConfig, SS58Prefix, Signature, WASM_BINARY,
-};
+use frontier_template_runtime::{AccountId, Balance, SS58Prefix, Signature, WASM_BINARY};
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig>;
+pub type ChainSpec = sc_service::GenericChainSpec;
 
 /// Generate a crypto pair from seed.
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -71,6 +69,7 @@ pub fn development_config(enable_manual_seal: bool) -> ChainSpec {
 				AccountId::from(hex!("773539d4Ac0e786233D90A233654ccEE26a613D9")), // Dorothy
 				AccountId::from(hex!("Ff64d3F6efE2317EE2807d223a0Bdc4c0c49dfDB")), // Ethan
 				AccountId::from(hex!("C0F0f4ab324C46e55D02D0033343B4Be8A55532d")), // Faith
+				AccountId::from(hex!("6Bc9543094D17f52CF6b419FB692797E48d275d0")), // BEAR
 			],
 			// Initial PoA authorities
 			vec![authority_keys_from_seed("Alice")],

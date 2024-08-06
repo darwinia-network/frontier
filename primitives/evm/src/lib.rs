@@ -77,6 +77,51 @@ pub enum AccessedStorage {
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct TransactionPov {
+	pub weight_limit: Weight,
+	pub extrinsics_len: u64,
+	pub proof_size_pre_execution: Option<u64>,
+	pub proof_size_used: u64,
+}
+
+impl TransactionPov {
+	pub fn new(
+		weight_limit: Weight,
+		extrinsics_len: u64,
+		proof_size_pre_execution: Option<u64>,
+	) -> Self {
+		Self {
+			weight_limit,
+			extrinsics_len,
+			proof_size_pre_execution,
+			proof_size_used: extrinsics_len,
+		}
+	}
+
+	pub fn proof_size_used(&self) -> u64 {
+		// if we don't have proof_size_pre_execution, that means that we don't care about the tx proof size
+		let Some(proof_size_pre_execution) = self.proof_size_pre_execution else {
+			return 0;
+		};
+
+		// If proof_size_pre_execution is enable, but the proof_size_post_execution is disable, maybe the proof_size host function
+		// doesn't work.
+		let Some(proof_size_post_execution) =
+			cumulus_primitives_storage_weight_reclaim::get_proof_size()
+		else {
+			return self.proof_size_used;
+		};
+
+		let proof_size_used = proof_size_post_execution
+			.saturating_sub(proof_size_pre_execution)
+			.saturating_add(self.extrinsics_len);
+
+		proof_size_used
+	}
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Encode, Decode, TypeInfo)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct WeightInfo {
 	pub ref_time_limit: Option<u64>,
 	pub proof_size_limit: Option<u64>,
@@ -109,6 +154,15 @@ impl WeightInfo {
 			}),
 			_ => return Err("must provide Some valid weight limit or None"),
 		})
+	}
+
+	pub fn from_transaction_pov(transaction_pov: TransactionPov) -> Self {
+		Self {
+			ref_time_limit: Some(transaction_pov.weight_limit.ref_time()),
+			proof_size_limit: Some(transaction_pov.weight_limit.proof_size()),
+			ref_time_usage: Some(0),
+			proof_size_usage: Some(transaction_pov.proof_size_used),
+		}
 	}
 
 	fn try_consume(&self, cost: u64, limit: u64, usage: u64) -> Result<u64, ExitError> {
