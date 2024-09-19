@@ -699,14 +699,13 @@ dependencies = [
 
 [[package]]
 name = "auto_impl"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fee3da8ef1276b0bee5dd1c7258010d8fffd31801447323115a25560e1327b89"
+checksum = "3c87f3f15e7794432337fc718554eaa4dc8f04c9677a950ffe366f20a162ae42"
 dependencies = [
- "proc-macro-error",
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.65",
 ]
 
 [[package]]
@@ -2745,17 +2744,20 @@ dependencies = [
 
 [[package]]
 name = "evm"
-version = "0.41.2"
-source = "git+https://github.com/rust-ethereum/evm?branch=v0.x#879ffe209fbdaa0e3fdfa68a7cd48c0743841e0a"
+version = "1.0.0-dev"
+dependencies = [
+ "evm-interpreter",
+ "primitive-types",
+ "sha3",
+]
+
+[[package]]
+name = "evm-interpreter"
+version = "1.0.0-dev"
 dependencies = [
  "auto_impl",
- "environmental",
- "ethereum",
- "evm-core",
- "evm-gasometer",
- "evm-runtime",
- "log",
  "parity-scale-codec",
+ "paste",
  "primitive-types",
  "rlp",
  "scale-info",
@@ -2764,37 +2766,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "evm-core"
-version = "0.41.0"
-source = "git+https://github.com/rust-ethereum/evm?branch=v0.x#879ffe209fbdaa0e3fdfa68a7cd48c0743841e0a"
+name = "evm-precompile"
+version = "0.0.0-dev"
 dependencies = [
- "parity-scale-codec",
+ "evm",
+ "k256",
+ "num",
  "primitive-types",
- "scale-info",
- "serde",
-]
-
-[[package]]
-name = "evm-gasometer"
-version = "0.41.0"
-source = "git+https://github.com/rust-ethereum/evm?branch=v0.x#879ffe209fbdaa0e3fdfa68a7cd48c0743841e0a"
-dependencies = [
- "environmental",
- "evm-core",
- "evm-runtime",
- "primitive-types",
-]
-
-[[package]]
-name = "evm-runtime"
-version = "0.41.0"
-source = "git+https://github.com/rust-ethereum/evm?branch=v0.x#879ffe209fbdaa0e3fdfa68a7cd48c0743841e0a"
-dependencies = [
- "auto_impl",
- "environmental",
- "evm-core",
- "primitive-types",
+ "ripemd",
+ "sha2 0.10.8",
  "sha3",
+ "substrate-bn",
 ]
 
 [[package]]
@@ -7090,6 +7072,7 @@ dependencies = [
  "cumulus-primitives-storage-weight-reclaim",
  "environmental",
  "evm",
+ "evm-precompile",
  "fp-account",
  "fp-evm",
  "frame-benchmarking",

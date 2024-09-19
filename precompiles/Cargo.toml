@@ -30,7 +30,7 @@ sp-runtime = { workspace = true }
 sp-weights = { workspace = true }
 
 # Frontier
-evm = { workspace = true, features = ["with-codec"] }
+evm = { workspace = true, features = ["scale"] }
 fp-evm = { workspace = true }
 pallet-evm = { workspace = true, features = ["forbid-evm-reentrancy"] }
 

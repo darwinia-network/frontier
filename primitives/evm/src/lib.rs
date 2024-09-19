@@ -20,10 +20,12 @@
 
 extern crate alloc;
 
-mod precompile;
+// mod precompile;
 mod validation;
 
 use alloc::{collections::BTreeMap, vec::Vec};
+use evm::interpreter::error::ExitResult;
+use evm::interpreter::runtime::Log;
 use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_MILLIS, Weight};
 use scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
@@ -32,32 +34,10 @@ use serde::{Deserialize, Serialize};
 use sp_core::{H160, H256, U256};
 use sp_runtime::Perbill;
 
-pub use evm::{
-	backend::{Basic as Account, Log},
-	Config, ExitReason, Opcode,
+pub use self::validation::{
+	CheckEvmTransaction, CheckEvmTransactionConfig, CheckEvmTransactionInput,
+	TransactionValidationError,
 };
-
-pub use self::{
-	precompile::{
-		Context, ExitError, ExitRevert, ExitSucceed, IsPrecompileResult, LinearCostPrecompile,
-		Precompile, PrecompileFailure, PrecompileHandle, PrecompileOutput, PrecompileResult,
-		PrecompileSet, Transfer,
-	},
-	validation::{
-		CheckEvmTransaction, CheckEvmTransactionConfig, CheckEvmTransactionInput,
-		TransactionValidationError,
-	},
-};
-
-#[derive(Clone, Eq, PartialEq, Default, Debug, Encode, Decode)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-/// External input from the transaction.
-pub struct Vicinity {
-	/// Current transaction gas price.
-	pub gas_price: U256,
-	/// Origin of the transaction.
-	pub origin: H160,
-}
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TransactionPov {
@@ -117,32 +97,14 @@ pub struct UsedGas {
 
 #[derive(Clone, Eq, PartialEq, Debug, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct ExecutionInfoV2<T> {
-	pub exit_reason: ExitReason,
-	pub value: T,
+pub struct ExecutionInfo {
+	pub exit_result: ExitResult,
+	pub value: Vec<u8>,
 	pub used_gas: UsedGas,
 	pub weight_info: Option<WeightInfo>,
-	pub logs: Vec<Log>,
+	// pub logs: Vec<Log>,
 }
 
-pub type CallInfo = ExecutionInfoV2<Vec<u8>>;
-pub type CreateInfo = ExecutionInfoV2<H160>;
-
-#[derive(Clone, Eq, PartialEq, Debug, Encode, Decode, TypeInfo)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum CallOrCreateInfo {
-	Call(CallInfo),
-	Create(CreateInfo),
-}
-
-#[derive(Clone, Eq, PartialEq, Debug, Encode, Decode)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct ExecutionInfo<T> {
-	pub exit_reason: ExitReason,
-	pub value: T,
-	pub used_gas: U256,
-	pub logs: Vec<Log>,
-}
 
 /// Account definition used for genesis block construction.
 #[derive(Clone, Eq, PartialEq, Debug, Encode, Decode)]

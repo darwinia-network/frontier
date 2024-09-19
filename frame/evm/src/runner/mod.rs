@@ -15,9 +15,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod stack;
+pub mod backend;
+pub mod executor;
 
 use alloc::vec::Vec;
+use evm::standard::Config as EVMConfig;
 // Substrate
 use sp_core::{H160, H256, U256};
 use sp_runtime::DispatchError;
@@ -41,7 +43,7 @@ pub trait Runner<T: Config> {
 		access_list: Vec<(H160, Vec<H256>)>,
 		is_transactional: bool,
 		transaction_pov: Option<TransactionPov>,
-		evm_config: &evm::Config,
+		evm_config: &EVMConfig,
 	) -> Result<(), RunnerError<Self::Error>>;
 
 	fn call(
@@ -57,7 +59,7 @@ pub trait Runner<T: Config> {
 		is_transactional: bool,
 		validate: bool,
 		transaction_pov: Option<TransactionPov>,
-		config: &evm::Config,
+		config: &EVMConfig,
 	) -> Result<CallInfo, RunnerError<Self::Error>>;
 
 	fn create(
@@ -72,7 +74,7 @@ pub trait Runner<T: Config> {
 		is_transactional: bool,
 		validate: bool,
 		transaction_pov: Option<TransactionPov>,
-		config: &evm::Config,
+		config: &EVMConfig,
 	) -> Result<CreateInfo, RunnerError<Self::Error>>;
 
 	fn create2(
@@ -88,7 +90,7 @@ pub trait Runner<T: Config> {
 		is_transactional: bool,
 		validate: bool,
 		transaction_pov: Option<TransactionPov>,
-		config: &evm::Config,
+		config: &EVMConfig,
 	) -> Result<CreateInfo, RunnerError<Self::Error>>;
 }
 

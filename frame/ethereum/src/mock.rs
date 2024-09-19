@@ -173,7 +173,7 @@ impl pallet_evm::Config for Test {
 	type PrecompilesValue = ();
 	type ChainId = ChainId;
 	type BlockGasLimit = BlockGasLimit;
-	type Runner = pallet_evm::runner::stack::Runner<Self>;
+	type Runner = pallet_evm::runner::executor::Runner<Self>;
 	type OnChargeTransaction = ();
 	type OnCreate = ();
 	type FindAuthor = FindAuthorTruncated;

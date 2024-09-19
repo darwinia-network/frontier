@@ -151,7 +151,7 @@ impl crate::Config for Test {
 	type PrecompilesValue = MockPrecompiles;
 	type ChainId = ();
 	type BlockGasLimit = BlockGasLimit;
-	type Runner = crate::runner::stack::Runner<Self>;
+	type Runner = crate::runner::executor::Runner<Self>;
 	type OnChargeTransaction = ();
 	type OnCreate = ();
 	type FindAuthor = FindAuthorTruncated;
