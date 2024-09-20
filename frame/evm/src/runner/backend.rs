@@ -15,8 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::EVMFungibleAdapter;
-use crate::OnChargeEVMTransaction;
 use crate::{
 	AccountCodes, AccountStorages, AddressMapping, BalanceOf, BlockHashMapping, Config, Event,
 	FeeCalculator, Pallet,
@@ -50,17 +48,14 @@ pub struct FrontierBackend<T> {
 	substate: Box<SubState>,
 	original_storage: BTreeMap<(H160, H256), H256>,
 	transact_pov: Option<TransactPov>,
-	// TODO: how to access list works
-	access_list: Vec<(H160, Vec<H256>)>,
 	_marker: PhantomData<T>,
 }
 
 impl<T: Config> FrontierBackend<T> {
 	pub fn new(transact_pov: Option<TransactPov>, access_list: Vec<(H160, Vec<H256>)>) -> Self {
 		Self {
-			substate: Box::new(SubState::new()),
+			substate: Box::new(SubState::new(&access_list)),
 			original_storage: BTreeMap::new(),
-			access_list,
 			transact_pov,
 			_marker: PhantomData,
 		}
@@ -69,7 +64,7 @@ impl<T: Config> FrontierBackend<T> {
 
 impl<T: Config> TransactionalBackend for FrontierBackend<T> {
 	fn push_substate(&mut self) {
-		let mut parent = Box::new(SubState::new());
+		let mut parent = Box::new(SubState::new(&vec![]));
 		mem::swap(&mut parent, &mut self.substate);
 		self.substate.parent = Some(parent);
 
@@ -345,11 +340,17 @@ struct SubState {
 }
 
 impl SubState {
-	pub fn new() -> Self {
+	pub fn new(access_list: &Vec<(H160, Vec<H256>)>) -> Self {
+		let accessed = access_list
+			.iter()
+			.cloned()
+			.flat_map(|(address, keys)| keys.into_iter().map(move |key| (address, Some(key))))
+			.collect();
+
 		Self {
 			parent: None,
 			transient_storage: Default::default(),
-			accessed: Default::default(),
+			accessed,
 			deleted: Default::default(),
 		}
 	}

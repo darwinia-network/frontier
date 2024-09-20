@@ -89,7 +89,6 @@ where
 	/// Execute an already validated EVM operation.
 	fn execute<'config>(
 		config: &'config EVMConfig,
-		is_transactional: bool,
 		transaction_args: TransactArgs,
 		transact_pov: Option<TransactPov>,
 	) -> Result<ExecutionInfo, RunnerError<Error<T>>> {
@@ -231,7 +230,7 @@ where
 			)?,
 			access_list,
 		};
-		Self::execute(config, is_transactional, transact_args, transact_pov)
+		Self::execute(config, transact_args, transact_pov)
 	}
 
 	fn create(
@@ -278,7 +277,7 @@ where
 			)?,
 			access_list,
 		};
-		Self::execute(config, is_transactional, transact_args, transact_pov)
+		Self::execute(config, transact_args, transact_pov)
 	}
 
 	fn create2(
@@ -327,6 +326,6 @@ where
 			access_list,
 		};
 
-		Self::execute(config, is_transactional, transact_args, transact_pov)
+		Self::execute(config, transact_args, transact_pov)
 	}
 }
