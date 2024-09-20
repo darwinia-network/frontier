@@ -25,7 +25,6 @@ mod validation;
 
 use alloc::{collections::BTreeMap, vec::Vec};
 use evm::interpreter::error::ExitResult;
-use evm::interpreter::runtime::Log;
 use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_MILLIS, Weight};
 use scale_codec::{Decode, Encode};
 use scale_info::TypeInfo;
@@ -105,6 +104,22 @@ pub struct ExecutionInfo {
 	// pub logs: Vec<Log>,
 }
 
+#[derive(Clone, Eq, PartialEq, Debug, Encode, Decode, TypeInfo)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct Basic {
+	/// Account balance.
+	pub balance: U256,
+	/// Account nonce.
+	pub nonce: U256,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug, Encode, Decode, TypeInfo)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct Log {
+	pub address: H160,
+	pub topics: Vec<H256>,
+	pub data: Vec<u8>,
+}
 
 /// Account definition used for genesis block construction.
 #[derive(Clone, Eq, PartialEq, Debug, Encode, Decode)]

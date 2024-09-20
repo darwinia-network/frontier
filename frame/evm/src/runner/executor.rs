@@ -17,6 +17,10 @@
 
 //! EVM stack-based runner.
 
+use crate::{
+	runner::backend::FrontierBackend, runner::Runner as RunnerT, AddressMapping, BalanceOf, Config,
+	Error, Event, FeeCalculator, OnChargeEVMTransaction, Pallet, RunnerError,
+};
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 use evm::{
@@ -24,25 +28,16 @@ use evm::{
 	standard::{Config as EVMConfig, Etable, EtableResolver, Invoker, TransactArgs, TransactValue},
 };
 use evm_precompile::StandardPrecompileSet;
-// Substrate
-use sp_core::{H160, H256, U256};
-// Frontier
 use fp_evm::{ExecutionInfo, TransactionPov, WeightInfo};
-
-use crate::{
-	runner::backend::FrontierBackend, runner::Runner as RunnerT, AddressMapping, BalanceOf, Config,
-	Error, Event, FeeCalculator, OnChargeEVMTransaction, Pallet, RunnerError,
-};
+use sp_core::Get;
+use sp_core::{H160, H256, U256};
 
 #[derive(Default)]
 pub struct Runner<T: Config> {
 	_marker: PhantomData<T>,
 }
 
-impl<T: Config> Runner<T>
-where
-	BalanceOf<T>: TryFrom<U256> + Into<U256>,
-{
+impl<T: Config> Runner<T> {
 	pub fn effective_gas_price(
 		is_transactional: bool,
 		max_fee_per_gas: Option<U256>,
@@ -95,20 +90,18 @@ where
 		let precompiles = StandardPrecompileSet::new(&config);
 		let resolver = EtableResolver::new(&config, &precompiles, &etable);
 		let invoker = Invoker::new(&config, &resolver);
-		let mut frontier_backend =
-			FrontierBackend::new(transaction_pov, transaction_args.access_list());
-		let (value, exit_result) = match evm::transact(
-			transaction_args.clone(),
-			None,
-			&mut frontier_backend,
-			&invoker,
-		) {
-			Ok(transact_value) => match transact_value {
-				TransactValue::Call { succeed, retval } => (retval, succeed.into()),
-				TransactValue::Create { succeed, address } => (address, succeed.into()),
-			},
-			Err(e) => (Vec::new(), e.into()),
-		};
+		let mut backend =
+			FrontierBackend::<T>::new(transaction_pov, transaction_args.access_list().clone());
+		let (value, exit_result) =
+			match evm::transact(transaction_args.clone(), None, &mut backend, &invoker) {
+				Ok(transact_value) => match transact_value {
+					TransactValue::Call { succeed, retval } => (retval, succeed.into()),
+					TransactValue::Create { succeed, address } => {
+						(address.as_bytes().to_vec(), succeed.into())
+					}
+				},
+				Err(e) => (Vec::new(), e.into()),
+			};
 
 		// let changeset = frontier_backend.deconstruct().1;
 		// frontier_backend.apply_changeset(&changeset);
@@ -216,7 +209,7 @@ where
 			address: target,
 			value,
 			data: input,
-			gas_limit,
+			gas_limit: gas_limit.into(),
 			gas_price: Self::effective_gas_price(
 				is_transactional,
 				max_fee_per_gas,
@@ -263,7 +256,7 @@ where
 			value,
 			init_code: init,
 			salt: None,
-			gas_limit,
+			gas_limit: gas_limit.into(),
 			gas_price: Self::effective_gas_price(
 				is_transactional,
 				max_fee_per_gas,
@@ -311,7 +304,7 @@ where
 			value,
 			init_code: init,
 			salt: Some(salt),
-			gas_limit,
+			gas_limit: gas_limit.into(),
 			gas_price: Self::effective_gas_price(
 				is_transactional,
 				max_fee_per_gas,

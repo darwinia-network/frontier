@@ -17,10 +17,9 @@
 
 #![allow(clippy::comparison_chain)]
 
-use crate::TransactionPov;
+use crate::{TransactionPov, Basic as Account};
 use alloc::vec::Vec;
 use evm::standard::Config as EVMConfig;
-use frame_support::sp_runtime::traits::UniqueSaturatedInto;
 use sp_core::{H160, H256, U256};
 
 #[derive(Debug)]
@@ -99,17 +98,17 @@ impl<'config, E: From<TransactionValidationError>> CheckEvmTransaction<'config, 
 		}
 	}
 
-	pub fn validate_in_pool_for(&self, account_nonce: U256) -> Result<&Self, E> {
-		if self.transaction.nonce < account_nonce {
+	pub fn validate_in_pool_for(&self, who: &Account) -> Result<&Self, E> {
+		if self.transaction.nonce < who.nonce {
 			return Err(TransactionValidationError::TxNonceTooLow.into());
 		}
 		self.validate_common()
 	}
 
-	pub fn validate_in_block_for(&self, account_nonce: U256) -> Result<&Self, E> {
-		if self.transaction.nonce > account_nonce {
+	pub fn validate_in_block_for(&self, who: &Account) -> Result<&Self, E> {
+		if self.transaction.nonce > who.nonce {
 			return Err(TransactionValidationError::TxNonceTooHigh.into());
-		} else if self.transaction.nonce < account_nonce {
+		} else if self.transaction.nonce < who.nonce {
 			return Err(TransactionValidationError::TxNonceTooLow.into());
 		}
 		self.validate_common()
@@ -137,7 +136,7 @@ impl<'config, E: From<TransactionValidationError>> CheckEvmTransaction<'config, 
 		Ok(self)
 	}
 
-	pub fn with_balance_for(&self, account_balance: U256) -> Result<&Self, E> {
+	pub fn with_balance_for(&self, who: &Account) -> Result<&Self, E> {
 		// Get fee data from either a legacy or typed transaction input.
 		let (max_fee_per_gas, _) = self.transaction_fee_input()?;
 
@@ -153,7 +152,7 @@ impl<'config, E: From<TransactionValidationError>> CheckEvmTransaction<'config, 
 		let fee = max_fee_per_gas.saturating_mul(self.transaction.gas_limit);
 		if self.config.is_transactional || fee > U256::zero() {
 			let total_payment = self.transaction.value.saturating_add(fee);
-			if account_balance < total_payment {
+			if who.balance < total_payment {
 				return Err(TransactionValidationError::BalanceTooLow.into());
 			}
 		}

@@ -17,6 +17,7 @@
 
 pub mod backend;
 pub mod executor;
+pub mod gasmeter;
 
 use alloc::vec::Vec;
 use evm::standard::Config as EVMConfig;
@@ -24,7 +25,7 @@ use evm::standard::Config as EVMConfig;
 use sp_core::{H160, H256, U256};
 use sp_runtime::DispatchError;
 // Frontier
-use fp_evm::{CallInfo, CreateInfo, TransactionPov};
+use fp_evm::{ExecutionInfo, TransactionPov};
 
 use crate::{Config, Weight};
 
@@ -60,7 +61,7 @@ pub trait Runner<T: Config> {
 		validate: bool,
 		transaction_pov: Option<TransactionPov>,
 		config: &EVMConfig,
-	) -> Result<CallInfo, RunnerError<Self::Error>>;
+	) -> Result<ExecutionInfo, RunnerError<Self::Error>>;
 
 	fn create(
 		source: H160,
@@ -75,7 +76,7 @@ pub trait Runner<T: Config> {
 		validate: bool,
 		transaction_pov: Option<TransactionPov>,
 		config: &EVMConfig,
-	) -> Result<CreateInfo, RunnerError<Self::Error>>;
+	) -> Result<ExecutionInfo, RunnerError<Self::Error>>;
 
 	fn create2(
 		source: H160,
@@ -91,7 +92,7 @@ pub trait Runner<T: Config> {
 		validate: bool,
 		transaction_pov: Option<TransactionPov>,
 		config: &EVMConfig,
-	) -> Result<CreateInfo, RunnerError<Self::Error>>;
+	) -> Result<ExecutionInfo, RunnerError<Self::Error>>;
 }
 
 #[derive(Debug, PartialEq)]

@@ -15,6 +15,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::{
+	AccountCodes, AccountStorages, AddressMapping, BlockHashMapping, Config, Event, FeeCalculator,
+	Pallet,
+};
 use alloc::{
 	boxed::Box,
 	collections::{btree_map::BTreeMap, btree_set::BTreeSet},
@@ -23,21 +27,23 @@ use alloc::{
 use core::{marker::PhantomData, mem};
 use evm::{
 	backend::{OverlayedBackend, RuntimeBackend},
-	MergeStrategy,
 	interpreter::{
 		error::{Capture, ExitError, ExitResult},
-		runtime::{GasState, Log, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin, Transfer},
+		runtime::{
+			GasState, Log as EVMLog, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin,
+			Transfer,
+		},
 		utils::u256_to_h256,
 		Interpreter,
 	},
 	standard::{Config as EVMConfig, Etable, EtableResolver, Invoker, TransactArgs},
-	TransactionalBackend,
+	MergeStrategy, TransactionalBackend,
 };
-use fp_evm::TransactionPov;
+use fp_evm::{Log, TransactionPov};
+use frame_support::traits::Time;
+use sp_core::Get;
 use sp_core::{H160, H256, U256};
-
-
-use crate::{Config, Pallet, AccountCodes, AccountStorages, AddressMapping, FeeCalculator, BlockHashMapping, Event};
+use sp_runtime::traits::UniqueSaturatedInto;
 
 pub struct FrontierBackend<T> {
 	substate: Box<SubState>,
@@ -79,9 +85,6 @@ impl<T: Config> TransactionalBackend for FrontierBackend<T> {
 
 		match strategy {
 			MergeStrategy::Commit => {
-				for log in child.logs {
-					self.substate.logs.push(log);
-				}
 				for address in child.deletes {
 					self.substate.deletes.insert(address);
 				}
@@ -162,7 +165,7 @@ impl<T: Config> RuntimeBaseBackend for FrontierBackend<T> {
 	}
 
 	fn transient_storage(&self, address: H160, index: H256) -> H256 {
-		<AccountStorages<T>>::get(address, index)
+		todo!();
 	}
 
 	fn exists(&self, address: H160) -> bool {
@@ -176,6 +179,18 @@ impl<T: Config> RuntimeBaseBackend for FrontierBackend<T> {
 }
 
 impl<T: Config> RuntimeBackend for FrontierBackend<T> {
+	fn mark_delete(&mut self, address: H160) {
+		self.substate.deletes.insert(address);
+	}
+
+	fn deleted(&self, address: H160) -> bool {
+		if self.substate.deletes.contains(&address) {
+			return true;
+		}
+
+		false
+	}
+
 	fn original_storage(&self, address: H160, index: H256) -> H256 {
 		self.original_storage
 			.get(&(address, index))
@@ -183,11 +198,11 @@ impl<T: Config> RuntimeBackend for FrontierBackend<T> {
 			.unwrap_or_else(|| self.storage(address, index))
 	}
 
-	fn deleted(&self, address: H160) -> bool {
-		self.substate.deletes.contains(&address)
+	fn is_cold(&self, address: H160, index: Option<H256>) -> bool {
+		// TODO: fix me
+		true
 	}
 
-	fn is_cold(&self, address: H160, index: Option<H256>) -> bool {}
 	fn is_hot(&self, address: H160, index: Option<H256>) -> bool {
 		!self.is_cold(address, index)
 	}
@@ -202,6 +217,7 @@ impl<T: Config> RuntimeBackend for FrontierBackend<T> {
 		}
 		Ok(())
 	}
+
 	fn set_transient_storage(
 		&mut self,
 		address: H160,
@@ -210,16 +226,22 @@ impl<T: Config> RuntimeBackend for FrontierBackend<T> {
 	) -> Result<(), ExitError> {
 		Ok(())
 	}
-	fn log(&mut self, log: Log) -> Result<(), ExitError> {
-		self.substate.logs.push(log);
+
+	fn log(&mut self, log: EVMLog) -> Result<(), ExitError> {
+		Pallet::<T>::deposit_event(Event::<T>::Log {
+			log: Log {
+				address: log.address,
+				topics: log.topics.clone(),
+				data: log.data.clone(),
+			},
+		});
 		Ok(())
 	}
-	fn mark_delete(&mut self, address: H160) {
-		self.substate.deletes.insert(address)
-	}
+
 	fn reset_storage(&mut self, address: H160) {
 		let _ = <AccountStorages<T>>::remove_prefix(address, None);
 	}
+
 	fn set_code(
 		&mut self,
 		address: H160,
@@ -229,24 +251,26 @@ impl<T: Config> RuntimeBackend for FrontierBackend<T> {
 		Pallet::<T>::create_account(address, code);
 		Ok(())
 	}
+
 	fn reset_balance(&mut self, address: H160) {}
 
 	fn deposit(&mut self, target: H160, value: U256) {
 		// FIX ME
 		// let account_id = T::AddressMapping::into_account_id(target);
 		// let _ = F::deposit(&account_id, value.peek(), Precision::BestEffort);
-		Ok(())
 	}
 
 	fn withdrawal(&mut self, source: H160, value: U256) -> Result<(), ExitError> {
-		T::OnChargeTransaction::withdraw_fee(&source, value);
+		// T::OnChargeTransaction::withdraw_fee(&source, value);
 		Ok(())
 	}
+
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
 		self.withdrawal(transfer.source, transfer.value)?;
 		self.deposit(transfer.target, transfer.value);
 		Ok(())
 	}
+
 	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError> {
 		let account_id = T::AddressMapping::into_account_id(address);
 		frame_system::Pallet::<T>::inc_account_nonce(&account_id);
@@ -256,7 +280,6 @@ impl<T: Config> RuntimeBackend for FrontierBackend<T> {
 
 struct SubState {
 	parent: Option<Box<SubState>>,
-	logs: Vec<Log>,
 	deletes: BTreeSet<H160>,
 }
 
@@ -264,7 +287,6 @@ impl SubState {
 	pub fn new() -> Self {
 		Self {
 			parent: None,
-			logs: Vec::new(),
 			deletes: Default::default(),
 		}
 	}

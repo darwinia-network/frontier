@@ -69,14 +69,11 @@ pub mod weights;
 
 use alloc::{collections::btree_map::BTreeMap, vec::Vec};
 use core::cmp::min;
-pub use evm::{
-	Config as EvmConfig, Context, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed,
-};
-use hash_db::Hasher;
-use impl_trait_for_tuples::impl_for_tuples;
-use scale_codec::{Decode, Encode, MaxEncodedLen};
-use scale_info::TypeInfo;
-// Substrate
+use evm::standard::Config as EvmConfig;
+use fp_account::AccountId20;
+use fp_evm::Basic as Account;
+use fp_evm::GenesisAccount;
+pub use fp_evm::{ExecutionInfo, FeeCalculator, Log, TransactionValidationError};
 use frame_support::{
 	dispatch::{DispatchResultWithPostInfo, Pays, PostDispatchInfo},
 	storage::{child::KillStorageResult, KeyPrefixIterator},
@@ -93,18 +90,14 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::RawOrigin;
+use hash_db::Hasher;
+use impl_trait_for_tuples::impl_for_tuples;
+use scale_codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
 use sp_core::{H160, H256, U256};
 use sp_runtime::{
 	traits::{BadOrigin, NumberFor, Saturating, UniqueSaturatedInto, Zero},
 	AccountId32, DispatchErrorWithPostInfo,
-};
-// Frontier
-use fp_account::AccountId20;
-use fp_evm::GenesisAccount;
-pub use fp_evm::{
-	Account, CallInfo, CreateInfo, ExecutionInfoV2 as ExecutionInfo, FeeCalculator,
-	IsPrecompileResult, LinearCostPrecompile, Log, Precompile, PrecompileFailure, PrecompileHandle,
-	PrecompileOutput, PrecompileResult, PrecompileSet, TransactionValidationError, Vicinity,
 };
 
 pub use self::{
@@ -150,8 +143,8 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Precompiles associated with this EVM engine.
-		type PrecompilesType: PrecompileSet;
-		type PrecompilesValue: Get<Self::PrecompilesType>;
+		// type PrecompilesType: PrecompileSet;
+		// type PrecompilesValue: Get<Self::PrecompilesType>;
 		/// Chain ID of EVM.
 		type ChainId: Get<u64>;
 		/// The block gas limit. Can be a simple constant, or an adjustment algorithm in another pallet.
@@ -260,14 +253,14 @@ pub mod pallet {
 				}
 			};
 
-			match info.exit_reason {
-				ExitReason::Succeed(_) => {
-					Pallet::<T>::deposit_event(Event::<T>::Executed { address: target });
-				}
-				_ => {
-					Pallet::<T>::deposit_event(Event::<T>::ExecutedFailed { address: target });
-				}
-			};
+			// match info.exit_reason {
+			// 	ExitReason::Succeed(_) => {
+			// 		Pallet::<T>::deposit_event(Event::<T>::Executed { address: target });
+			// 	}
+			// 	_ => {
+			// 		Pallet::<T>::deposit_event(Event::<T>::ExecutedFailed { address: target });
+			// 	}
+			// };
 
 			Ok(PostDispatchInfo {
 				actual_weight: {
@@ -334,26 +327,26 @@ pub mod pallet {
 				}
 			};
 
-			match info {
-				CreateInfo {
-					exit_reason: ExitReason::Succeed(_),
-					value: create_address,
-					..
-				} => {
-					Pallet::<T>::deposit_event(Event::<T>::Created {
-						address: create_address,
-					});
-				}
-				CreateInfo {
-					exit_reason: _,
-					value: create_address,
-					..
-				} => {
-					Pallet::<T>::deposit_event(Event::<T>::CreatedFailed {
-						address: create_address,
-					});
-				}
-			}
+			// match info {
+			// 	CreateInfo {
+			// 		exit_reason: ExitReason::Succeed(_),
+			// 		value: create_address,
+			// 		..
+			// 	} => {
+			// 		Pallet::<T>::deposit_event(Event::<T>::Created {
+			// 			address: create_address,
+			// 		});
+			// 	}
+			// 	CreateInfo {
+			// 		exit_reason: _,
+			// 		value: create_address,
+			// 		..
+			// 	} => {
+			// 		Pallet::<T>::deposit_event(Event::<T>::CreatedFailed {
+			// 			address: create_address,
+			// 		});
+			// 	}
+			// }
 
 			Ok(PostDispatchInfo {
 				actual_weight: {
@@ -421,26 +414,26 @@ pub mod pallet {
 				}
 			};
 
-			match info {
-				CreateInfo {
-					exit_reason: ExitReason::Succeed(_),
-					value: create_address,
-					..
-				} => {
-					Pallet::<T>::deposit_event(Event::<T>::Created {
-						address: create_address,
-					});
-				}
-				CreateInfo {
-					exit_reason: _,
-					value: create_address,
-					..
-				} => {
-					Pallet::<T>::deposit_event(Event::<T>::CreatedFailed {
-						address: create_address,
-					});
-				}
-			}
+			// match info {
+			// 	CreateInfo {
+			// 		exit_reason: ExitReason::Succeed(_),
+			// 		value: create_address,
+			// 		..
+			// 	} => {
+			// 		Pallet::<T>::deposit_event(Event::<T>::Created {
+			// 			address: create_address,
+			// 		});
+			// 	}
+			// 	CreateInfo {
+			// 		exit_reason: _,
+			// 		value: create_address,
+			// 		..
+			// 	} => {
+			// 		Pallet::<T>::deposit_event(Event::<T>::CreatedFailed {
+			// 			address: create_address,
+			// 		});
+			// 	}
+			// }
 
 			Ok(PostDispatchInfo {
 				actual_weight: {
