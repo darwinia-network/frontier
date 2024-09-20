@@ -876,7 +876,6 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let code = <AccountCodes<T>>::get(address);
-
 		// If code is empty we return precomputed hash for empty code.
 		// We don't store it as this address could get code deployed in the future.
 		if code.is_empty() {
@@ -888,10 +887,9 @@ impl<T: Config> Pallet<T> {
 				hash: EMPTY_CODE_HASH.into(),
 			};
 		}
-
 		let meta = CodeMetadata::from_code(&code);
-
 		<AccountCodesMetadata<T>>::insert(address, meta);
+
 		meta
 	}
 

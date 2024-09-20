@@ -19,7 +19,7 @@
 
 use std::{collections::BTreeMap, str::FromStr};
 // Frontier
-use fp_evm::TransactionPov;
+use fp_evm::TransactPov;
 // Substrate
 use frame_support::{
 	assert_ok,
@@ -718,8 +718,7 @@ fn proof_size_create_contract() {
 	});
 
 	test_ext_with_recorder.execute_with(|| {
-		let transaction_pov =
-			TransactionPov::new(Weight::from_parts(10000000000000, 5000), proof_size());
+		let transact_pov = TransactPov::new(Weight::from_parts(10000000000000, 5000), proof_size());
 		let res = <Test as Config>::Runner::create(
 			H160::default(),
 			hex::decode(PROOF_TEST_BYTECODE).unwrap(),
@@ -731,7 +730,7 @@ fn proof_size_create_contract() {
 			Vec::new(),
 			true, // transactional|
 			true, // must be validated
-			Some(transaction_pov),
+			Some(transact_pov),
 			&<Test as Config>::config().clone(),
 		)
 		.expect("create contract failed");
@@ -751,8 +750,7 @@ fn proof_size_reach_limit() {
 	let mut test_ext_with_recorder = new_text_ext_with_recorder();
 	// create contract run out of proof size
 	test_ext_with_recorder.execute_with(|| {
-		let transaction_pov =
-			TransactionPov::new(Weight::from_parts(10000000000000, 101), proof_size());
+		let transact_pov = TransactPov::new(Weight::from_parts(10000000000000, 101), proof_size());
 		let res = <Test as Config>::Runner::create(
 			H160::default(),
 			hex::decode(PROOF_TEST_BYTECODE).unwrap(),
@@ -764,7 +762,7 @@ fn proof_size_reach_limit() {
 			Vec::new(),
 			true, // transactional
 			true, // must be validated
-			Some(transaction_pov),
+			Some(transact_pov),
 			&<Test as Config>::config().clone(),
 		)
 		.expect("create contract failed");
@@ -775,8 +773,8 @@ fn proof_size_reach_limit() {
 
 	// call contract run out of proof size
 	test_ext_with_recorder.execute_with(|| {
-		let mut transaction_pov =
-			TransactionPov::new(Weight::from_parts(10000000000000, 5000), proof_size());
+		let mut transact_pov =
+			TransactPov::new(Weight::from_parts(10000000000000, 5000), proof_size());
 		let res = <Test as Config>::Runner::create(
 			H160::default(),
 			hex::decode(PROOF_TEST_BYTECODE).unwrap(),
@@ -788,7 +786,7 @@ fn proof_size_reach_limit() {
 			Vec::new(),
 			true, // transactional
 			true, // must be validated
-			Some(transaction_pov),
+			Some(transact_pov),
 			&<Test as Config>::config().clone(),
 		)
 		.expect("create contract failed");
@@ -797,8 +795,8 @@ fn proof_size_reach_limit() {
 
 		// set_number(6)
 		let calldata = "d6d1ee140000000000000000000000000000000000000000000000000000000000000006";
-		transaction_pov.proof_size_pre_execution = 100;
-		transaction_pov.weight_limit = Weight::from_parts(10000000000000, 1);
+		transact_pov.proof_size_pre_execution = 100;
+		transact_pov.weight_limit = Weight::from_parts(10000000000000, 1);
 		let res = <Test as Config>::Runner::call(
 			H160::default(),
 			contract_addr,
@@ -811,7 +809,7 @@ fn proof_size_reach_limit() {
 			Vec::new(),
 			true,  // transactional
 			false, // must be validated
-			Some(transaction_pov),
+			Some(transact_pov),
 			&<Test as Config>::config().clone(),
 		)
 		.expect("call contract failed");
@@ -819,7 +817,7 @@ fn proof_size_reach_limit() {
 
 		// get_number()
 		let calldata = "eeb4e367";
-		transaction_pov.weight_limit = Weight::from_parts(10000000000000, 50000);
+		transact_pov.weight_limit = Weight::from_parts(10000000000000, 50000);
 		let res = <Test as Config>::Runner::call(
 			H160::default(),
 			contract_addr,
@@ -832,7 +830,7 @@ fn proof_size_reach_limit() {
 			Vec::new(),
 			true,  // transactional
 			false, // must be validated
-			Some(transaction_pov),
+			Some(transact_pov),
 			&<Test as Config>::config().clone(),
 		)
 		.expect("call contract failed");
@@ -850,8 +848,7 @@ fn proof_size_reach_limit_nonce_increase() {
 	let mut test_ext_with_recorder = new_text_ext_with_recorder();
 	test_ext_with_recorder.execute_with(|| {
 		let original_nonce = EVM::account_basic(&H160::default()).0.nonce;
-		let transaction_pov =
-			TransactionPov::new(Weight::from_parts(10000000000000, 101), proof_size());
+		let transact_pov = TransactPov::new(Weight::from_parts(10000000000000, 101), proof_size());
 		let res = <Test as Config>::Runner::create(
 			H160::default(),
 			hex::decode(PROOF_TEST_BYTECODE).unwrap(),
@@ -863,7 +860,7 @@ fn proof_size_reach_limit_nonce_increase() {
 			Vec::new(),
 			true, // transactional
 			true, // must be validated
-			Some(transaction_pov),
+			Some(transact_pov),
 			&<Test as Config>::config().clone(),
 		)
 		.expect("create contract failed");

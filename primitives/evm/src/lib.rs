@@ -39,12 +39,12 @@ pub use self::validation::{
 };
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct TransactionPov {
+pub struct TransactPov {
 	pub weight_limit: Weight,
 	pub proof_size_pre_execution: u64,
 }
 
-impl TransactionPov {
+impl TransactPov {
 	pub fn new(weight_limit: Weight, proof_size_pre_execution: u64) -> Self {
 		Self {
 			weight_limit,
@@ -74,12 +74,12 @@ pub struct WeightInfo {
 }
 
 impl WeightInfo {
-	pub fn from_transaction_pov(transaction_pov: TransactionPov) -> Self {
+	pub fn from_transaction_pov(transact_pov: TransactPov) -> Self {
 		Self {
-			ref_time_limit: Some(transaction_pov.weight_limit.ref_time()),
-			proof_size_limit: Some(transaction_pov.weight_limit.proof_size()),
+			ref_time_limit: Some(transact_pov.weight_limit.ref_time()),
+			proof_size_limit: Some(transact_pov.weight_limit.proof_size()),
 			ref_time_usage: Some(0),
-			proof_size_usage: Some(transaction_pov.proof_size_used()),
+			proof_size_usage: Some(transact_pov.proof_size_used()),
 		}
 	}
 }

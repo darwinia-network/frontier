@@ -25,7 +25,7 @@ use evm::standard::Config as EVMConfig;
 use sp_core::{H160, H256, U256};
 use sp_runtime::DispatchError;
 // Frontier
-use fp_evm::{ExecutionInfo, TransactionPov};
+use fp_evm::{ExecutionInfo, TransactPov};
 
 use crate::{Config, Weight};
 
@@ -43,7 +43,7 @@ pub trait Runner<T: Config> {
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
 		is_transactional: bool,
-		transaction_pov: Option<TransactionPov>,
+		transact_pov: Option<TransactPov>,
 		evm_config: &EVMConfig,
 	) -> Result<(), RunnerError<Self::Error>>;
 
@@ -59,7 +59,7 @@ pub trait Runner<T: Config> {
 		access_list: Vec<(H160, Vec<H256>)>,
 		is_transactional: bool,
 		validate: bool,
-		transaction_pov: Option<TransactionPov>,
+		transact_pov: Option<TransactPov>,
 		config: &EVMConfig,
 	) -> Result<ExecutionInfo, RunnerError<Self::Error>>;
 
@@ -74,7 +74,7 @@ pub trait Runner<T: Config> {
 		access_list: Vec<(H160, Vec<H256>)>,
 		is_transactional: bool,
 		validate: bool,
-		transaction_pov: Option<TransactionPov>,
+		transact_pov: Option<TransactPov>,
 		config: &EVMConfig,
 	) -> Result<ExecutionInfo, RunnerError<Self::Error>>;
 
@@ -90,7 +90,7 @@ pub trait Runner<T: Config> {
 		access_list: Vec<(H160, Vec<H256>)>,
 		is_transactional: bool,
 		validate: bool,
-		transaction_pov: Option<TransactionPov>,
+		transact_pov: Option<TransactPov>,
 		config: &EVMConfig,
 	) -> Result<ExecutionInfo, RunnerError<Self::Error>>;
 }

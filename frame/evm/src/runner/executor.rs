@@ -28,16 +28,26 @@ use evm::{
 	standard::{Config as EVMConfig, Etable, EtableResolver, Invoker, TransactArgs, TransactValue},
 };
 use evm_precompile::StandardPrecompileSet;
-use fp_evm::{ExecutionInfo, TransactionPov, WeightInfo};
+use fp_evm::{ExecutionInfo, TransactPov, WeightInfo};
+use frame_support::traits::fungible::Balanced;
+use frame_support::traits::fungible::Inspect;
 use sp_core::Get;
 use sp_core::{H160, H256, U256};
+use sp_runtime::traits::UniqueSaturatedInto;
 
 #[derive(Default)]
 pub struct Runner<T: Config> {
 	_marker: PhantomData<T>,
 }
 
-impl<T: Config> Runner<T> {
+impl<T: Config> Runner<T>
+where
+	BalanceOf<T>: TryFrom<U256> + Into<U256>,
+	T::Currency: Balanced<T::AccountId>,
+	U256: UniqueSaturatedInto<
+		<T::Currency as Inspect<<T as frame_system::Config>::AccountId>>::Balance,
+	>,
+{
 	pub fn effective_gas_price(
 		is_transactional: bool,
 		max_fee_per_gas: Option<U256>,
@@ -81,7 +91,7 @@ impl<T: Config> Runner<T> {
 		config: &'config EVMConfig,
 		is_transactional: bool,
 		transaction_args: TransactArgs,
-		transaction_pov: Option<TransactionPov>,
+		transact_pov: Option<TransactPov>,
 	) -> Result<ExecutionInfo, RunnerError<Error<T>>> {
 		let gas_etable = Etable::single(evm::standard::eval_gasometer);
 		let exec_etable = Etable::runtime();
@@ -91,7 +101,7 @@ impl<T: Config> Runner<T> {
 		let resolver = EtableResolver::new(&config, &precompiles, &etable);
 		let invoker = Invoker::new(&config, &resolver);
 		let mut backend =
-			FrontierBackend::<T>::new(transaction_pov, transaction_args.access_list().clone());
+			FrontierBackend::<T>::new(transact_pov, transaction_args.access_list().clone());
 		let (value, exit_result) =
 			match evm::transact(transaction_args.clone(), None, &mut backend, &invoker) {
 				Ok(transact_value) => match transact_value {
@@ -113,7 +123,7 @@ impl<T: Config> Runner<T> {
 				standard: 100.into(),
 				effective: 100.into(),
 			},
-			weight_info: transaction_pov.map(WeightInfo::from_transaction_pov),
+			weight_info: transact_pov.map(WeightInfo::from_transaction_pov),
 			// logs: state.substate.logs,
 		})
 	}
@@ -122,6 +132,10 @@ impl<T: Config> Runner<T> {
 impl<T: Config> RunnerT<T> for Runner<T>
 where
 	BalanceOf<T>: TryFrom<U256> + Into<U256>,
+	T::Currency: Balanced<T::AccountId>,
+	U256: UniqueSaturatedInto<
+		<T::Currency as Inspect<<T as frame_system::Config>::AccountId>>::Balance,
+	>,
 {
 	type Error = Error<T>;
 
@@ -136,7 +150,7 @@ where
 		nonce: Option<U256>,
 		access_list: Vec<(H160, Vec<H256>)>,
 		is_transactional: bool,
-		transaction_pov: Option<TransactionPov>,
+		transact_pov: Option<TransactPov>,
 		evm_config: &EVMConfig,
 	) -> Result<(), RunnerError<Self::Error>> {
 		let (base_fee, mut weight) = T::FeeCalculator::min_gas_price();
@@ -163,7 +177,7 @@ where
 				value,
 				access_list,
 			},
-			transaction_pov,
+			transact_pov,
 		)
 		.validate_in_block_for(&source_account)
 		.and_then(|v| v.with_base_fee())
@@ -184,7 +198,7 @@ where
 		access_list: Vec<(H160, Vec<H256>)>,
 		is_transactional: bool,
 		validate: bool,
-		transaction_pov: Option<TransactionPov>,
+		transact_pov: Option<TransactPov>,
 		config: &EVMConfig,
 	) -> Result<ExecutionInfo, RunnerError<Self::Error>> {
 		if validate {
@@ -199,7 +213,7 @@ where
 				nonce,
 				access_list.clone(),
 				is_transactional,
-				transaction_pov,
+				transact_pov,
 				config,
 			)?;
 		}
@@ -217,7 +231,7 @@ where
 			)?,
 			access_list,
 		};
-		Self::execute(config, is_transactional, transact_args, transaction_pov)
+		Self::execute(config, is_transactional, transact_args, transact_pov)
 	}
 
 	fn create(
@@ -231,7 +245,7 @@ where
 		access_list: Vec<(H160, Vec<H256>)>,
 		is_transactional: bool,
 		validate: bool,
-		transaction_pov: Option<TransactionPov>,
+		transact_pov: Option<TransactPov>,
 		config: &EVMConfig,
 	) -> Result<ExecutionInfo, RunnerError<Self::Error>> {
 		if validate {
@@ -246,7 +260,7 @@ where
 				nonce,
 				access_list.clone(),
 				is_transactional,
-				transaction_pov,
+				transact_pov,
 				config,
 			)?;
 		}
@@ -264,7 +278,7 @@ where
 			)?,
 			access_list,
 		};
-		Self::execute(config, is_transactional, transact_args, transaction_pov)
+		Self::execute(config, is_transactional, transact_args, transact_pov)
 	}
 
 	fn create2(
@@ -279,7 +293,7 @@ where
 		access_list: Vec<(H160, Vec<H256>)>,
 		is_transactional: bool,
 		validate: bool,
-		transaction_pov: Option<TransactionPov>,
+		transact_pov: Option<TransactPov>,
 		config: &EVMConfig,
 	) -> Result<ExecutionInfo, RunnerError<Self::Error>> {
 		if validate {
@@ -294,7 +308,7 @@ where
 				nonce,
 				access_list.clone(),
 				is_transactional,
-				transaction_pov,
+				transact_pov,
 				config,
 			)?;
 		}
@@ -313,6 +327,6 @@ where
 			access_list,
 		};
 
-		Self::execute(config, is_transactional, transact_args, transaction_pov)
+		Self::execute(config, is_transactional, transact_args, transact_pov)
 	}
 }

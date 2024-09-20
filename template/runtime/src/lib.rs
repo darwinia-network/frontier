@@ -48,7 +48,7 @@ use pallet_transaction_payment::{ConstFeeMultiplier, FungibleAdapter};
 use sp_genesis_builder::PresetId;
 // Frontier
 use fp_account::EthereumSignature;
-use fp_evm::{weight_per_gas, TransactionPov};
+use fp_evm::{weight_per_gas, TransactPov};
 use fp_rpc::TransactionStatus;
 use pallet_ethereum::{Call::transact, PostLogContent, Transaction as EthereumTransaction};
 use pallet_evm::{
@@ -812,8 +812,8 @@ impl_runtime_apis! {
 				gas_limit.low_u64()
 			};
 			let weight_limit = <Runtime as pallet_evm::Config>::GasWeightMapping::gas_to_weight(gas_limit, true);
-			let transaction_pov = cumulus_primitives_storage_weight_reclaim::get_proof_size().map(
-				|proof_size_pre_execution| { TransactionPov::new(weight_limit, proof_size_pre_execution) },
+			let transact_pov = cumulus_primitives_storage_weight_reclaim::get_proof_size().map(
+				|proof_size_pre_execution| { TransactPov::new(weight_limit, proof_size_pre_execution) },
 			);
 			<Runtime as pallet_evm::Config>::Runner::call(
 				from,
@@ -827,7 +827,7 @@ impl_runtime_apis! {
 				access_list.unwrap_or_default(),
 				false,
 				true,
-				transaction_pov,
+				transact_pov,
 				config.as_ref().unwrap_or(<Runtime as pallet_evm::Config>::config()),
 			).map_err(|err| err.error.into())
 		}
@@ -859,8 +859,8 @@ impl_runtime_apis! {
 				gas_limit.low_u64()
 			};
 			let weight_limit = <Runtime as pallet_evm::Config>::GasWeightMapping::gas_to_weight(gas_limit, true);
-			let transaction_pov = cumulus_primitives_storage_weight_reclaim::get_proof_size().map(
-				|proof_size_pre_execution| { TransactionPov::new(weight_limit, proof_size_pre_execution) },
+			let transact_pov = cumulus_primitives_storage_weight_reclaim::get_proof_size().map(
+				|proof_size_pre_execution| { TransactPov::new(weight_limit, proof_size_pre_execution) },
 			);
 			<Runtime as pallet_evm::Config>::Runner::create(
 				from,

@@ -17,7 +17,7 @@
 
 #![allow(clippy::comparison_chain)]
 
-use crate::{TransactionPov, Basic as Account};
+use crate::{TransactPov, Basic as Account};
 use alloc::vec::Vec;
 use evm::standard::Config as EVMConfig;
 use sp_core::{H160, H256, U256};
@@ -49,7 +49,7 @@ pub struct CheckEvmTransactionConfig<'config> {
 pub struct CheckEvmTransaction<'config, E: From<TransactionValidationError>> {
 	pub config: CheckEvmTransactionConfig<'config>,
 	pub transaction: CheckEvmTransactionInput,
-	pub transaction_pov: Option<TransactionPov>,
+	pub transact_pov: Option<TransactPov>,
 	_marker: core::marker::PhantomData<E>,
 }
 
@@ -88,12 +88,12 @@ impl<'config, E: From<TransactionValidationError>> CheckEvmTransaction<'config, 
 	pub fn new(
 		config: CheckEvmTransactionConfig<'config>,
 		transaction: CheckEvmTransactionInput,
-		transaction_pov: Option<TransactionPov>,
+		transact_pov: Option<TransactPov>,
 	) -> Self {
 		CheckEvmTransaction {
 			config,
 			transaction,
-			transaction_pov,
+			transact_pov,
 			_marker: Default::default(),
 		}
 	}
@@ -285,7 +285,7 @@ mod tests {
 		pub max_fee_per_gas: Option<U256>,
 		pub max_priority_fee_per_gas: Option<U256>,
 		pub value: U256,
-		pub transaction_pov: Option<TransactionPov>,
+		pub transact_pov: Option<TransactPov>,
 	}
 
 	impl Default for TestCase {
@@ -302,7 +302,7 @@ mod tests {
 				max_fee_per_gas: Some(U256::from(1_000_000_000u128)),
 				max_priority_fee_per_gas: Some(U256::from(1_000_000_000u128)),
 				value: U256::from(1u8),
-				transaction_pov: None,
+				transact_pov: None,
 			}
 		}
 	}
@@ -320,7 +320,7 @@ mod tests {
 			max_fee_per_gas,
 			max_priority_fee_per_gas,
 			value,
-			transaction_pov,
+			transact_pov,
 		} = input;
 		CheckEvmTransaction::<TestError>::new(
 			CheckEvmTransactionConfig {
@@ -342,7 +342,7 @@ mod tests {
 				value,
 				access_list: vec![],
 			},
-			transaction_pov,
+			transact_pov,
 		)
 	}
 
