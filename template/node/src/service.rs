@@ -59,7 +59,7 @@ pub fn new_partial<RuntimeApi, Executor, BIQ>(
 			Option<Telemetry>,
 			BoxBlockImport,
 			GrandpaLinkHalf<FullClient<RuntimeApi, Executor>>,
-			FrontierBackend,
+			FrontierBackend<FullClient<RuntimeApi, Executor>>,
 			Arc<fc_rpc::OverrideHandle<Block>>,
 		),
 	>,

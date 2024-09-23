@@ -47,7 +47,7 @@ pub struct MappingSyncWorker<Block: BlockT, C, BE> {
 	client: Arc<C>,
 	substrate_backend: Arc<BE>,
 	overrides: Arc<OverrideHandle<Block>>,
-	frontier_backend: Arc<fc_db::kv::Backend<Block>>,
+	frontier_backend: Arc<fc_db::kv::Backend<Block, C>>,
 
 	have_next: bool,
 	retry_times: usize,
@@ -68,8 +68,12 @@ impl<Block: BlockT, C, BE> MappingSyncWorker<Block, C, BE> {
 		client: Arc<C>,
 		substrate_backend: Arc<BE>,
 		overrides: Arc<OverrideHandle<Block>>,
-		frontier_backend: Arc<fc_db::kv::Backend<Block>>,
+		frontier_backend: Arc<fc_db::kv::Backend<Block, C>>,
 		retry_times: usize,
+		sync_from: <Block::Header as HeaderT>::Number,
+		strategy: SyncStrategy,
+		sync_oracle: Arc<dyn SyncOracle + Send + Sync + 'static>,
+		pubsub_notification_sinks: Arc<
 			crate::EthereumBlockNotificationSinks<crate::EthereumBlockNotification<Block>>,
 		>,
 	) -> Self {

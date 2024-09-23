@@ -40,7 +40,7 @@ use crate::{EthereumBlockNotification, EthereumBlockNotificationSinks, SyncStrat
 pub fn sync_block<Block: BlockT, C, BE>(
 	client: &C,
 	overrides: Arc<OverrideHandle<Block>>,
-	backend: &fc_db::kv::Backend<Block>,
+	backend: &fc_db::kv::Backend<Block, C>,
 	header: &Block::Header,
 ) -> Result<(), String>
 where
@@ -159,7 +159,7 @@ pub fn sync_one_block<Block: BlockT, C, BE>(
 	client: &C,
 	substrate_backend: &BE,
 	overrides: Arc<OverrideHandle<Block>>,
-	frontier_backend: &fc_db::kv::Backend<Block>,
+	frontier_backend: &fc_db::kv::Backend<Block, C>,
 	sync_from: <Block::Header as HeaderT>::Number,
 	strategy: SyncStrategy,
 	sync_oracle: Arc<dyn SyncOracle + Send + Sync + 'static>,
@@ -248,7 +248,7 @@ pub fn sync_blocks<Block: BlockT, C, BE>(
 	client: &C,
 	substrate_backend: &BE,
 	overrides: Arc<OverrideHandle<Block>>,
-	frontier_backend: &fc_db::kv::Backend<Block>,
+	frontier_backend: &fc_db::kv::Backend<Block, C>,
 	limit: usize,
 	sync_from: <Block::Header as HeaderT>::Number,
 	strategy: SyncStrategy,

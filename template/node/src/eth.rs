@@ -155,7 +155,7 @@ pub async fn spawn_frontier_tasks<RuntimeApi, Executor>(
 					client.clone(),
 					backend,
 					overrides.clone(),
-					Arc::new(b),
+					b.clone(),
 					3,
 					0,
 					fc_mapping_sync::SyncStrategy::Normal,
